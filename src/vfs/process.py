@@ -290,7 +290,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         count += 1
         frames_count += 1
 
-        if (max_frames > 0) and (max_frames > frames_processed):
+        if (max_frames > 0) and (frames_processed >= max_frames):
             if verbose:
                 print("Maximum number of processed frames reached: %d" % frames_processed)
             break
