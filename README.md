@@ -1,6 +1,7 @@
 # video-frame-selector
-Meta-tool that presents frames from a video to object detection frameworks and uses the predictions to determine 
+Meta-tool that presents frames from a video to image analysis frameworks and uses the predictions to determine 
 whether to use a frame or not.
+
 
 ## Installation
 
@@ -15,6 +16,23 @@ whether to use a frame or not.
   ```commandline
   ./venv/bin/pip install video-frame-selector
   ```
+
+## Supported formats
+
+* Input
+
+  * webcam
+  * videos
+  
+* Image analysis output
+
+  * [ROI CSV](https://github.com/waikato-ufdl/wai-annotations-roi)
+  
+* Output
+
+  * JPG files (using frame number as file name)
+  * MJPG video (use either .avi or .mkv as file extension for the container) 
+
 
 ## Command-line options
 

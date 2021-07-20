@@ -17,7 +17,7 @@ def _read(f):
 
 setup(
     name="video-frame-selector",
-    description="Meta-tool that presents frames from a video to object detection frameworks and uses the predictions to determine whether to use a frame or not.",
+    description="Meta-tool that presents frames from a video to image analysis frameworks and uses the predictions to determine whether to use a frame or not.",
     long_description=(
         _read('DESCRIPTION.rst') + b'\n' +
         _read('CHANGES.rst')).decode('utf-8'),
