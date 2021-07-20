@@ -25,26 +25,53 @@ ANALYSIS_FORMAT = "%06d.EXT"
 """ The file name format to use for the image analysis framework. """
 
 
-def check_roiscsv(analysis_file, min_score, required_labels, excluded_labels):
+class Prediction(object):
     """
-    Checks whether the frame processed by the image analysis process can be included in the output.
+    Encapsulates a single prediction.
+    """
+
+    def __init__(self, index, label, score, data=None):
+        """
+        Initializes the prediction.
+
+        :param index: the 0-based index of the prediction
+        :type index: int
+        :param label: the label string
+        :type label: str
+        :param score: the prediction score
+        :type score: float
+        :param data: additional, optional data
+        :type data: object
+        """
+        self.index = index
+        self.label = label
+        self.score = score
+        self.data = data
+
+    def __str__(self):
+        """
+        Returns a string representation of the object.
+
+        :return: the string representation
+        :rtype: str
+        """
+        return "%d: %s = %f" % (self.index, self.label, self.score)
+
+
+def load_roiscsv(analysis_file):
+    """
+    Loads the specified ROIs CSV file.
 
     :param analysis_file: the ROIs CSV file to check
     :type analysis_file: str
-    :param min_score: the minimum score the predictions must have to be considered
-    :type min_score: float
-    :param required_labels: the list of labels that must have the specified min_score, ignored if None
-    :type required_labels: list
-    :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None
-    :type excluded_labels: list
-    :return: whether to include the frame or not
-    :rtype: bool
+    :return: the list of predictions
+    :rtype: list
     """
-    result = None
+    result = []
 
     with open(analysis_file) as cf:
         reader = csv.DictReader(cf)
-        for row in reader:
+        for i, row in enumerate(reader):
             score = 1.0
             if "score" in row:
                 score = float(row["score"])
@@ -52,16 +79,8 @@ def check_roiscsv(analysis_file, min_score, required_labels, excluded_labels):
             if "label_str" in row:
                 label = row["label_str"]
 
-            if required_labels is not None:
-                if (label in required_labels) and (score >= min_score):
-                    result = True
-
-            if excluded_labels is not None:
-                if (label in excluded_labels) and (score >= min_score):
-                    result = False
-
-    if result is None:
-        result = False
+            p = Prediction(i, label, score)
+            result.append(p)
 
     return result
 
@@ -84,10 +103,29 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
     :rtype: bool
     """
 
+    if (required_labels is None) and (excluded_labels is None):
+        return True
+
+    # load predictions
     if analysis_type == ANALYSIS_ROISCSV:
-        return check_roiscsv(analysis_file, min_score, required_labels, excluded_labels)
+        predictions = load_roiscsv(analysis_file)
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
+
+    # check predictions
+    result = None
+    for p in predictions:
+        if (required_labels is not None) and (len(required_labels) > 0):
+            if (p.label in required_labels) and (p.score >= min_score):
+                result = True
+
+        if (excluded_labels is not None) and (len(excluded_labels) > 0):
+            if (p.label in excluded_labels) and (p.score >= min_score):
+                result = False
+    if result is None:
+        result = False
+
+    return result
 
 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
@@ -135,15 +173,9 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
 
-    # labels
-    if (required_labels is not None) and (len(required_labels) == 0):
-        required_labels = None
-    if (excluded_labels is not None) and (len(excluded_labels) == 0):
-        excluded_labels = None
-
     # pass through image analysis
     end = datetime.now().microsecond + analysis_timeout * 10e6
-    inc = analysis_timeout / 10
+    inc = 0.1
     while datetime.now().microsecond < end:
         for out_file in out_files:
             if os.path.exists(out_file):
@@ -166,7 +198,7 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
-            output, output_type, output_format, output_tmp, output_fps, verbose):
+            output, output_type, output_format, output_tmp, output_fps, verbose, progress):
     """
     Processes the input video or webcam feed.
     
@@ -206,6 +238,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type output_fps: int
     :param verbose: whether to print some logging information
     :type verbose: bool
+    :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
+    :type progress: int`
     """
 
     # open input
@@ -288,13 +322,15 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         else:
             break
 
-        if verbose and (frames_count % 10 == 0):
+        if verbose and (frames_count % progress == 0):
             print("Frames processed: %d" % frames_count)
 
     if verbose:
         print("Frames processed: %d" % frames_count)
 
     cap.release()
+    if out is not None:
+        out.release()
 
 
 def main(args=None):
@@ -319,13 +355,14 @@ def main(args=None):
     parser.add_argument("--analysis_timeout", metavar="SECONDS", help="the maximum number of seconds to wait for the image analysis to finish processing", required=False, type=float, default=10)
     parser.add_argument("--analysis_type", metavar="TYPE", help="the type of output the analysis process generates", choices=ANALYSIS_TYPES, required=False, default=ANALYSIS_TYPES[0])
     parser.add_argument("--min_score", metavar="FLOAT", help="the minimum score that a prediction must have", required=False, type=float, default=0.0)
-    parser.add_argument("--required_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must contain (with high enough scores)", required=False, default="")
-    parser.add_argument("--excluded_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must not contain (with high enough scores)", required=False, default="")
-    parser.add_argument("--output", metavar="DIR_OR_FILE", help="the output directory or file for storing the selected frames", required=True)
+    parser.add_argument("--required_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must contain (with high enough scores)", required=False)
+    parser.add_argument("--excluded_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must not contain (with high enough scores)", required=False)
+    parser.add_argument("--output", metavar="DIR_OR_FILE", help="the output directory or file for storing the selected frames (use .avi or .mkv for videos)", required=True)
     parser.add_argument("--output_type", metavar="TYPE", help="the type of output to generate", choices=OUTPUT_TYPES, required=True)
     parser.add_argument("--output_format", metavar="FORMAT", help="the format string for the images, see https://docs.python.org/3/library/stdtypes.html#old-string-formatting", required=False, default="%06d.jpg")
     parser.add_argument("--output_tmp", metavar="DIR", help="the temporary directory to write the output images to before moving them to the output directory (to avoid race conditions with processes that pick up the images)", required=False)
     parser.add_argument("--output_fps", metavar="FORMAT", help="the frames per second to use when generating a video", required=False, type=int, default=25)
+    parser.add_argument("--progress", metavar="INT", help="every nth frame a progress is being output (in verbose mode)", required=False, type=int, default=100)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
 
@@ -343,7 +380,7 @@ def main(args=None):
             analysis_type=parsed.analysis_type, min_score=parsed.min_score,
             required_labels=required_labels, excluded_labels=excluded_labels,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
-            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose)
+            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose, progress=parsed.progress)
 
 
 def sys_main():

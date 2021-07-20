@@ -2,6 +2,20 @@
 Meta-tool that presents frames from a video to object detection frameworks and uses the predictions to determine 
 whether to use a frame or not.
 
+## Installation
+
+* create virtual environment
+
+  ```commandline
+  virtualenv -p /usr/bin/python3.7 venv
+  ```
+  
+* install library
+
+  ```commandline
+  ./venv/bin/pip install video-frame-selector
+  ```
+
 ## Command-line options
 
 ```
@@ -12,7 +26,7 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type TYPE [--nth_frame INT]
                    [--min_score FLOAT] [--required_labels LIST]
                    [--excluded_labels LIST] --output DIR_OR_FILE --output_type
                    TYPE [--output_format FORMAT] [--output_tmp DIR]
-                   [--output_fps FORMAT] [--verbose]
+                   [--output_fps FORMAT] [--progress INT] [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -46,13 +60,13 @@ optional arguments:
   --required_labels LIST
                         the comma-separated list of labels that the analysis
                         output must contain (with high enough scores)
-                        (default: )
+                        (default: None)
   --excluded_labels LIST
                         the comma-separated list of labels that the analysis
                         output must not contain (with high enough scores)
-                        (default: )
+                        (default: None)
   --output DIR_OR_FILE  the output directory or file for storing the selected
-                        frames (default: None)
+                        frames (use .avi or .mkv for videos) (default: None)
   --output_type TYPE    the type of output to generate (default: None)
   --output_format FORMAT
                         the format string for the images, see
@@ -64,5 +78,7 @@ optional arguments:
                         images) (default: None)
   --output_fps FORMAT   the frames per second to use when generating a video
                         (default: 25)
+  --progress INT        every nth frame a progress is being output (in verbose
+                        mode) (default: 100)
   --verbose             for more verbose output (default: False)
 ```
