@@ -197,7 +197,7 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                 if result:
                     if os.path.exists(img_out_file):
                         os.remove(img_out_file)
-                return True
+                return result
         sleep(inc)
 
     # clean up if necessary
