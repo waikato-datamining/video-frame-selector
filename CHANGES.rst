@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.2 (????-??-??)
+0.0.2 (2021-07-30)
 ------------------
 
 - fixed `return` statement in `process_image` method
