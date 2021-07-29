@@ -85,7 +85,7 @@ def load_roiscsv(analysis_file):
     return result
 
 
-def check_output(analysis_file, analysis_type, min_score, required_labels, excluded_labels):
+def check_output(analysis_file, analysis_type, min_score, required_labels, excluded_labels, verbose):
     """
     Checks whether the frame processed by the image analysis process can be included in the output.
 
@@ -101,6 +101,8 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
     :type excluded_labels: list or None
     :return: whether to include the frame or not
     :rtype: bool
+    :param verbose: whether to print some logging information
+    :type verbose: bool
     """
 
     if (required_labels is None) and (excluded_labels is None):
@@ -117,10 +119,14 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
     for p in predictions:
         if (required_labels is not None) and (len(required_labels) > 0):
             if (p.label in required_labels) and (p.score >= min_score):
+                if verbose:
+                    print("Required label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
                 result = True
 
         if (excluded_labels is not None) and (len(excluded_labels) > 0):
             if (p.label in excluded_labels) and (p.score >= min_score):
+                if verbose:
+                    print("Excluded label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
                 result = False
     if result is None:
         result = False
@@ -129,7 +135,8 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
 
 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
-                  analysis_timeout, analysis_type, min_score, required_labels, excluded_labels):
+                  analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
+                  verbose):
     """
     Pushes a frame through the image analysis framework and returns whether to keep it or not.
 
@@ -155,6 +162,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     :type excluded_labels: list or None
     :return: whether to keep the frame or skip it
     :rtype: bool
+    :param verbose: whether to print some logging information
+    :type verbose: bool
     """
     if analysis_tmp is not None:
         img_tmp_file = os.path.join(analysis_tmp, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
@@ -179,12 +188,16 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     while datetime.now().microsecond < end:
         for out_file in out_files:
             if os.path.exists(out_file):
-                result = check_output(out_file, analysis_type, min_score, required_labels, excluded_labels)
+                if verbose:
+                    print("Checking analysis output: %s" % out_file)
+                result = check_output(out_file, analysis_type, min_score, required_labels, excluded_labels, verbose)
                 os.remove(out_file)
+                if verbose:
+                    print("Can be included: %s" % str(result))
                 if result:
                     if os.path.exists(img_out_file):
                         os.remove(img_out_file)
-                    return True
+                return True
         sleep(inc)
 
     # clean up if necessary
@@ -303,7 +316,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 # do we want to keep frame?
                 if analysis_input is not None:
                     if not process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
-                                         analysis_timeout, analysis_type, min_score, required_labels, excluded_labels):
+                                         analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
+                                         verbose):
                         continue
 
                 frames_processed += 1
