@@ -135,7 +135,8 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
 
 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
-                  analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
+                  analysis_timeout, analysis_type, analysis_keep_files,
+                  min_score, required_labels, excluded_labels,
                   verbose):
     """
     Pushes a frame through the image analysis framework and returns whether to keep it or not.
@@ -154,6 +155,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     :type analysis_timeout: float
     :param analysis_type: the type of output the analysis is generated, see ANALYSIS_TYPES
     :type analysis_type: str
+    :param analysis_keep_files: whether to keep the analysis files rather than deleting them
+    :type analysis_keep_files: bool
     :param min_score: the minimum score that the predictions have to have
     :type min_score: float
     :param required_labels: the list of labels that must have the specified min_score, ignored if None or empty
@@ -191,26 +194,27 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                 if verbose:
                     print("Checking analysis output: %s" % out_file)
                 result = check_output(out_file, analysis_type, min_score, required_labels, excluded_labels, verbose)
-                os.remove(out_file)
+                if not analysis_keep_files:
+                    os.remove(out_file)
                 if verbose:
                     print("Can be included: %s" % str(result))
                 if result:
-                    if os.path.exists(img_out_file):
+                    if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
                 return result
         sleep(inc)
 
     # clean up if necessary
-    if os.path.exists(img_in_file):
+    if not analysis_keep_files and os.path.exists(img_in_file):
         os.remove(img_in_file)
-    if os.path.exists(img_out_file):
+    if not analysis_keep_files and os.path.exists(img_out_file):
         os.remove(img_out_file)
 
     return False
 
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
-            analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
+            analysis_timeout, analysis_type, analysis_keep_files, min_score, required_labels, excluded_labels,
             output, output_type, output_format, output_tmp, output_fps, verbose, progress):
     """
     Processes the input video or webcam feed.
@@ -233,6 +237,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type analysis_timeout: float
     :param analysis_type: the type of output the analysis is generated, see ANALYSIS_TYPES
     :type analysis_type: str
+    :param analysis_keep_files: whether to keep the analysis files rather than deleting them
+    :type analysis_keep_files: bool
     :param min_score: the minimum score that the predictions have to have
     :type min_score: float
     :param required_labels: the list of labels that must have the specified min_score, ignored if None or empty
@@ -316,8 +322,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 # do we want to keep frame?
                 if analysis_input is not None:
                     if not process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
-                                         analysis_timeout, analysis_type, min_score, required_labels, excluded_labels,
-                                         verbose):
+                                         analysis_timeout, analysis_type, analysis_keep_files, min_score,
+                                         required_labels, excluded_labels, verbose):
                         continue
 
                 frames_processed += 1
@@ -368,6 +374,7 @@ def main(args=None):
     parser.add_argument("--analysis_output", metavar="DIR", help="the output directory used by the image analysis process", required=False)
     parser.add_argument("--analysis_timeout", metavar="SECONDS", help="the maximum number of seconds to wait for the image analysis to finish processing", required=False, type=float, default=10)
     parser.add_argument("--analysis_type", help="the type of output the analysis process generates", choices=ANALYSIS_TYPES, required=False, default=ANALYSIS_TYPES[0])
+    parser.add_argument("--analysis_keep_files", help="whether to keep the analysis files rather than deleting them", action="store_true", required=False)
     parser.add_argument("--min_score", metavar="FLOAT", help="the minimum score that a prediction must have", required=False, type=float, default=0.0)
     parser.add_argument("--required_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must contain (with high enough scores)", required=False)
     parser.add_argument("--excluded_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must not contain (with high enough scores)", required=False)
@@ -391,8 +398,8 @@ def main(args=None):
     process(input=parsed.input, input_type=parsed.input_type, nth_frame=parsed.nth_frame, max_frames=parsed.max_frames,
             analysis_input=parsed.analysis_input, analysis_output=parsed.analysis_output,
             analysis_tmp=parsed.analysis_tmp, analysis_timeout=parsed.analysis_timeout,
-            analysis_type=parsed.analysis_type, min_score=parsed.min_score,
-            required_labels=required_labels, excluded_labels=excluded_labels,
+            analysis_type=parsed.analysis_type, analysis_keep_files=parsed.analysis_keep_files,
+            min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose, progress=parsed.progress)
 
