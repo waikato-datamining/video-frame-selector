@@ -319,6 +319,9 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         count += 1
         frames_count += 1
 
+        if verbose and (frames_count % progress == 0):
+            print("Frames processed: %d" % frames_count)
+
         # check frame window
         if (from_frame > 0) and (frames_count < from_frame):
             continue
@@ -358,9 +361,6 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                         cv2.imwrite(out_file, frame)
         else:
             break
-
-        if verbose and (frames_count % progress == 0):
-            print("Frames processed: %d" % frames_count)
 
     if verbose:
         print("Frames processed: %d" % frames_count)
