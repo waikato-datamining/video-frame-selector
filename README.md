@@ -38,7 +38,8 @@ whether to use a frame or not.
 
 ```
 usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
-                   [--nth_frame INT] [--max_frames INT] [--analysis_input DIR]
+                   [--nth_frame INT] [--max_frames INT] [--from_frame INT]
+                   [--to_frame INT] [--analysis_input DIR]
                    [--analysis_tmp DIR] [--analysis_output DIR]
                    [--analysis_timeout SECONDS] [--analysis_type {rois_csv}]
                    [--analysis_keep_files] [--min_score FLOAT]
@@ -61,6 +62,10 @@ optional arguments:
                         (default: 10)
   --max_frames INT      the maximum number of processed frames before exiting
                         (<=0 for unlimited) (default: 0)
+  --from_frame INT      the starting frame (incl.); ignored if <= 0 (default:
+                        -1)
+  --to_frame INT        the last frame to process (incl.); ignored if <= 0
+                        (default: -1)
   --analysis_input DIR  the input directory used by the image analysis
                         process; if not provided, all frames get accepted
                         (default: None)

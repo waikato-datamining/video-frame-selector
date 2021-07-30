@@ -214,7 +214,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
 
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
-            analysis_timeout, analysis_type, analysis_keep_files, min_score, required_labels, excluded_labels,
+            analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
+            min_score, required_labels, excluded_labels,
             output, output_type, output_format, output_tmp, output_fps, verbose, progress):
     """
     Processes the input video or webcam feed.
@@ -239,6 +240,10 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type analysis_type: str
     :param analysis_keep_files: whether to keep the analysis files rather than deleting them
     :type analysis_keep_files: bool
+    :param from_frame: the starting frame (incl), ignored if <=0
+    :type from_frame: int
+    :param to_frame: the last frame (incl), ignored if <=0
+    :type to_frame: int
     :param min_score: the minimum score that the predictions have to have
     :type min_score: float
     :param required_labels: the list of labels that must have the specified min_score, ignored if None or empty
@@ -275,6 +280,11 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     else:
         raise Exception("Unhandled input type: %s" % input_type)
 
+    # frames
+    if (from_frame > 0) and (to_frame > 0):
+        if from_frame > to_frame:
+            raise Exception("from_frame (%d) cannot be larger than to_frame (%d)" % (from_frame, to_frame))
+
     # analysis
     if analysis_type not in ANALYSIS_TYPES:
         raise Exception("Unknown analysis type: %s" % analysis_type)
@@ -308,6 +318,13 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         retval, frame = cap.read()
         count += 1
         frames_count += 1
+
+        # check frame window
+        if (from_frame > 0) and (frames_count < from_frame):
+            continue
+        if (to_frame > 0) and (frames_count > to_frame):
+            print("Reached to_frame (%d)" % to_frame)
+            break
 
         if (max_frames > 0) and (frames_processed >= max_frames):
             if verbose:
@@ -369,6 +386,8 @@ def main(args=None):
     parser.add_argument("--input_type", help="the input type", choices=INPUT_TYPES, required=True)
     parser.add_argument("--nth_frame", metavar="INT", help="every nth frame gets presented to the analysis process", required=False, type=int, default=10)
     parser.add_argument("--max_frames", metavar="INT", help="the maximum number of processed frames before exiting (<=0 for unlimited)", required=False, type=int, default=0)
+    parser.add_argument("--from_frame", metavar="INT", help="the starting frame (incl.); ignored if <= 0", required=False, type=int, default=-1)
+    parser.add_argument("--to_frame", metavar="INT", help="the last frame to process (incl.); ignored if <= 0", required=False, type=int, default=-1)
     parser.add_argument("--analysis_input", metavar="DIR", help="the input directory used by the image analysis process; if not provided, all frames get accepted", required=False)
     parser.add_argument("--analysis_tmp", metavar="DIR", help="the temporary directory to place the images in before moving them into the actual input directory (to avoid race conditions)", required=False)
     parser.add_argument("--analysis_output", metavar="DIR", help="the output directory used by the image analysis process", required=False)
@@ -399,6 +418,7 @@ def main(args=None):
             analysis_input=parsed.analysis_input, analysis_output=parsed.analysis_output,
             analysis_tmp=parsed.analysis_tmp, analysis_timeout=parsed.analysis_timeout,
             analysis_type=parsed.analysis_type, analysis_keep_files=parsed.analysis_keep_files,
+            from_frame=parsed.from_frame, to_frame=parsed.to_frame,
             min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose, progress=parsed.progress)
