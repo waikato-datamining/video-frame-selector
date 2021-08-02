@@ -46,8 +46,8 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--required_labels LIST] [--excluded_labels LIST]
                    [--poll_interval POLL_INTERVAL] --output DIR_OR_FILE
                    --output_type {jpg,mjpg} [--output_format FORMAT]
-                   [--output_tmp DIR] [--output_fps FORMAT] [--progress INT]
-                   [--verbose]
+                   [--output_tmp DIR] [--output_fps FORMAT]
+                   [--crop_to_content] [--progress INT] [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -112,6 +112,8 @@ optional arguments:
                         images) (default: None)
   --output_fps FORMAT   the frames per second to use when generating a video
                         (default: 25)
+  --crop_to_content     whether to crop the frame to the detected content
+                        (default: False)
   --progress INT        every nth frame a progress is being output (in verbose
                         mode) (default: 100)
   --verbose             for more verbose output (default: False)

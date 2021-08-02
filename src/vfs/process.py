@@ -1,10 +1,11 @@
 import argparse
-import csv
 import cv2
 import os
 import traceback
 from datetime import datetime
 from time import sleep
+from vfs.predictions import load_roiscsv, crop_frame
+from vfs.logging import log
 
 
 INPUT_VIDEO = "video"
@@ -25,103 +26,43 @@ ANALYSIS_FORMAT = "%06d.EXT"
 """ The file name format to use for the image analysis framework. """
 
 
-class Prediction(object):
+def load_output(analysis_file, analysis_type):
     """
-    Encapsulates a single prediction.
-    """
-
-    def __init__(self, index, label, score, data=None):
-        """
-        Initializes the prediction.
-
-        :param index: the 0-based index of the prediction
-        :type index: int
-        :param label: the label string
-        :type label: str
-        :param score: the prediction score
-        :type score: float
-        :param data: additional, optional data
-        :type data: object
-        """
-        self.index = index
-        self.label = label
-        self.score = score
-        self.data = data
-
-    def __str__(self):
-        """
-        Returns a string representation of the object.
-
-        :return: the string representation
-        :rtype: str
-        """
-        return "%d: %s = %f" % (self.index, self.label, self.score)
-
-
-def log(*args):
-    """
-    Just outputs the arguments with a timestamp.
-
-    :param args: the arguments to log
-    """
-    print(*("%s - " % str(datetime.now()), *args))
-
-
-def load_roiscsv(analysis_file):
-    """
-    Loads the specified ROIs CSV file.
-
-    :param analysis_file: the ROIs CSV file to check
-    :type analysis_file: str
-    :return: the list of predictions
-    :rtype: list
-    """
-    result = []
-
-    with open(analysis_file) as cf:
-        reader = csv.DictReader(cf)
-        for i, row in enumerate(reader):
-            score = 1.0
-            if "score" in row:
-                score = float(row["score"])
-            label = ""
-            if "label_str" in row:
-                label = row["label_str"]
-
-            p = Prediction(i, label, score)
-            result.append(p)
-
-    return result
-
-
-def check_output(analysis_file, analysis_type, min_score, required_labels, excluded_labels, verbose):
-    """
-    Checks whether the frame processed by the image analysis process can be included in the output.
+    Loads the generated analysis output file and returns the predictions.
 
     :param analysis_file: the file to check
     :type analysis_file: str
     :param analysis_type: the type of analysis, see ANALYSIS_TYPES
     :type analysis_type: str
+    :return: list of Prediction objects
+    :rtype: list
+    """
+    if analysis_type == ANALYSIS_ROISCSV:
+        return load_roiscsv(analysis_file)
+    else:
+        raise Exception("Unhandled analysis type: %s" % analysis_type)
+
+
+def check_predictions(predictions, min_score, required_labels, excluded_labels, verbose):
+    """
+    Checks whether the frame processed by the image analysis process can be included in the output.
+
+    :param predictions: the list of Prediction objects to check
+    :type predictions: list
     :param min_score: the minimum score the predictions must have to be considered
     :type min_score: float
     :param required_labels: the list of labels that must have the specified min_score, ignored if None
     :type required_labels: list or None
     :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None
     :type excluded_labels: list or None
-    :return: whether to include the frame or not
-    :rtype: bool
     :param verbose: whether to print some logging information
     :type verbose: bool
+    :return: whether to include the frame or not
+    :rtype: bool
     """
 
     if (required_labels is None) and (excluded_labels is None):
         return True
-
-    # load predictions
-    if analysis_type == ANALYSIS_ROISCSV:
-        predictions = load_roiscsv(analysis_file)
-    else:
-        raise Exception("Unhandled analysis type: %s" % analysis_type)
 
     # check predictions
     result = None
@@ -146,7 +87,7 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                   analysis_timeout, analysis_type, analysis_keep_files,
                   min_score, required_labels, excluded_labels, poll_interval,
-                  verbose):
+                  crop_to_content, verbose):
     """
     Pushes a frame through the image analysis framework and returns whether to keep it or not.
 
@@ -174,10 +115,12 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     :type excluded_labels: list or None
     :param poll_interval: the interval in seconds for the file polling
     :type poll_interval: float
-    :return: whether to keep the frame or skip it
-    :rtype: bool
+    :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
+    :type crop_to_content: bool
     :param verbose: whether to print some logging information
     :type verbose: bool
+    :return: tuple (whether to keep the frame or skip it, potentially cropped frame)
+    :rtype: tuple
     """
     if analysis_tmp is not None:
         img_tmp_file = os.path.join(analysis_tmp, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
@@ -209,15 +152,18 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
             if os.path.exists(out_file):
                 if verbose:
                     log("Checking analysis output: %s" % out_file)
-                result = check_output(out_file, analysis_type, min_score, required_labels, excluded_labels, verbose)
+                predictions = load_output(out_file, analysis_type)
+                result = check_predictions(predictions, min_score, required_labels, excluded_labels, verbose)
                 if not analysis_keep_files:
                     os.remove(out_file)
                 if verbose:
                     log("Can be included: %s" % str(result))
                 if result:
+                    if crop_to_content:
+                        frame = crop_frame(frame, predictions, verbose)
                     if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
-                return result
+                return result, frame
         sleep(poll_interval)
 
     # clean up if necessary
@@ -226,13 +172,13 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     if not analysis_keep_files and os.path.exists(img_out_file):
         os.remove(img_out_file)
 
-    return False
+    return False, frame
 
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
             min_score, required_labels, excluded_labels, poll_interval,
-            output, output_type, output_format, output_tmp, output_fps, verbose, progress):
+            output, output_type, output_format, output_tmp, output_fps, crop_to_content, verbose, progress):
     """
     Processes the input video or webcam feed.
     
@@ -278,6 +224,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type output_tmp: str
     :param output_fps: the frames-per-second to use when generating an output video
     :type output_fps: int
+    :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
+    :type crop_to_content: bool
     :param verbose: whether to print some logging information
     :type verbose: bool
     :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
@@ -321,6 +269,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         out = cv2.VideoWriter(output, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), output_fps, (frame_width, frame_height))
+        crop_to_content = False
     elif output_type == OUTPUT_JPG:
         if (output_format % 1) == output_format:
             raise Exception("Output format does not expand integers: %s" % output_format)
@@ -359,9 +308,10 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
 
                 # do we want to keep frame?
                 if analysis_input is not None:
-                    if not process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
-                                         analysis_timeout, analysis_type, analysis_keep_files, min_score,
-                                         required_labels, excluded_labels, poll_interval, verbose):
+                    keep, frame = process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
+                                                analysis_timeout, analysis_type, analysis_keep_files, min_score,
+                                                required_labels, excluded_labels, poll_interval, crop_to_content, verbose)
+                    if not keep:
                         continue
 
                 frames_processed += 1
@@ -421,6 +371,7 @@ def main(args=None):
     parser.add_argument("--output_format", metavar="FORMAT", help="the format string for the images, see https://docs.python.org/3/library/stdtypes.html#old-string-formatting", required=False, default="%06d.jpg")
     parser.add_argument("--output_tmp", metavar="DIR", help="the temporary directory to write the output images to before moving them to the output directory (to avoid race conditions with processes that pick up the images)", required=False)
     parser.add_argument("--output_fps", metavar="FORMAT", help="the frames per second to use when generating a video", required=False, type=int, default=25)
+    parser.add_argument("--crop_to_content", help="whether to crop the frame to the detected content", action="store_true", required=False)
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress is being output (in verbose mode)", required=False, type=int, default=100)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
@@ -441,7 +392,8 @@ def main(args=None):
             min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
             poll_interval=parsed.poll_interval,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
-            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose, progress=parsed.progress)
+            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, crop_to_content=parsed.crop_to_content,
+            verbose=parsed.verbose, progress=parsed.progress)
 
 
 def sys_main():

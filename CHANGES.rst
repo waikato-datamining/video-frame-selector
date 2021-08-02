@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.0.4 (????-??-??)
+------------------
+
+- added `--crop_to_content` flag that crops the frames to the bounding boxes
+  (only when not generating an output video)
+
+
 0.0.3 (2021-08-02)
 ------------------
 
