@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.4 (????-??-??)
+0.0.4 (2021-08-03)
 ------------------
 
 - added `--crop_to_content` flag that crops the frames to the bounding boxes
