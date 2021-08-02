@@ -130,16 +130,22 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
     if x1 - x0 + 1 < min_width:
         if verbose:
             log("Width below min_width=%d, adjusting" % min_width)
+            log("Current: x0=%d, x1=%d" % (x0, x1))
         inc = min_width / 2
         x0 = max(0, x0 - inc)
         x1 = min(width - 1, x1 + inc)
+        if verbose:
+            log("Corrected: x0=%d, x1=%d" % (x0, x1))
 
     if y1 - y0 + 1 < min_height:
         if verbose:
             log("Height below min_height=%d, adjusting" % min_height)
+            log("Current: y0=%d, y1=%d" % (y0, y1))
         inc = min_height / 2
         y0 = max(0, y0 - inc)
         y1 = min(width - 1, y1 + inc)
+        if verbose:
+            log("Corrected: y0=%d, y1=%d" % (y0, y1))
 
     if verbose:
         log("Cropping: x0=%d, y0=%d, x1=%d, y1=%d" % (x0, y0, x1, y1))
