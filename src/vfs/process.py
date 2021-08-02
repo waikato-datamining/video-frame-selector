@@ -58,6 +58,15 @@ class Prediction(object):
         return "%d: %s = %f" % (self.index, self.label, self.score)
 
 
+def log(*args):
+    """
+    Just outputs the arguments with a timestamp.
+
+    :param args: the arguments to log
+    """
+    print(*("%s - " % str(datetime.now()), *args))
+
+
 def load_roiscsv(analysis_file):
     """
     Loads the specified ROIs CSV file.
@@ -120,13 +129,13 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
         if (required_labels is not None) and (len(required_labels) > 0):
             if (p.label in required_labels) and (p.score >= min_score):
                 if verbose:
-                    print("Required label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
+                    log("Required label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
                 result = True
 
         if (excluded_labels is not None) and (len(excluded_labels) > 0):
             if (p.label in excluded_labels) and (p.score >= min_score):
                 if verbose:
-                    print("Excluded label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
+                    log("Excluded label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
                 result = False
     if result is None:
         result = False
@@ -193,12 +202,12 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
         for out_file in out_files:
             if os.path.exists(out_file):
                 if verbose:
-                    print("Checking analysis output: %s" % out_file)
+                    log("Checking analysis output: %s" % out_file)
                 result = check_output(out_file, analysis_type, min_score, required_labels, excluded_labels, verbose)
                 if not analysis_keep_files:
                     os.remove(out_file)
                 if verbose:
-                    print("Can be included: %s" % str(result))
+                    log("Can be included: %s" % str(result))
                 if result:
                     if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
@@ -274,11 +283,11 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         raise Exception("Unknown input type: %s" % input_type)
     if input_type == INPUT_VIDEO:
         if verbose:
-            print("Opening input video: %s" % input)
+            log("Opening input video: %s" % input)
         cap = cv2.VideoCapture(input)
     elif input_type == INPUT_WEBCAM:
         if verbose:
-            print("Opening webcam: %s" % input)
+            log("Opening webcam: %s" % input)
         cap = cv2.VideoCapture(int(input))
     else:
         raise Exception("Unhandled input type: %s" % input_type)
@@ -302,7 +311,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         raise Exception("Unknown output type: %s" % output_type)
     if output_type == OUTPUT_MJPG:
         if verbose:
-            print("Opening output video: %s" % output)
+            log("Opening output video: %s" % output)
         frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         out = cv2.VideoWriter(output, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), output_fps, (frame_width, frame_height))
@@ -323,18 +332,18 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         frames_count += 1
 
         if verbose and (frames_count % progress == 0):
-            print("Frames processed: %d" % frames_count)
+            log("Frames processed: %d" % frames_count)
 
         # check frame window
         if (from_frame > 0) and (frames_count < from_frame):
             continue
         if (to_frame > 0) and (frames_count > to_frame):
-            print("Reached to_frame (%d)" % to_frame)
+            log("Reached to_frame (%d)" % to_frame)
             break
 
         if (max_frames > 0) and (frames_processed >= max_frames):
             if verbose:
-                print("Maximum number of processed frames reached: %d" % frames_processed)
+                log("Maximum number of processed frames reached: %d" % frames_processed)
             break
 
         # process frame
@@ -366,7 +375,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
             break
 
     if verbose:
-        print("Frames processed: %d" % frames_count)
+        log("Frames processed: %d" % frames_count)
 
     cap.release()
     if out is not None:
