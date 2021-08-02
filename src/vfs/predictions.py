@@ -102,6 +102,9 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         return frame
 
     height, width = frame.shape[:2]
+    if verbose:
+        log("Frame width x height: %d x %d" % (width, height))
+
     x0 = width
     y0 = height
     x1 = 0
