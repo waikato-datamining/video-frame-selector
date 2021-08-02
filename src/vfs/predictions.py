@@ -115,33 +115,39 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         y0 = min(y0, cy0)
         x1 = max(x1, cx1)
         y1 = max(y1, cy1)
-        
+
+    # no crop window found, cannot crop
     if (x0 == width) or (y0 == height):
         if verbose:
             log("Cannot crop")
         return frame
 
+    # add margin?
     if margin > 0:
         x0 = max(0, x0 - margin)
         y0 = max(0, y0 - margin)
         x1 = min(width - 1, x1 + margin)
         y1 = min(height - 1, y1 + margin)
-        
-    if x1 - x0 + 1 < min_width:
+
+    # correct width?
+    width = x1 - x0 + 1
+    if width < min_width:
         if verbose:
-            log("Width below min_width=%d, adjusting" % min_width)
+            log("Width below min_width: %d < %d" % (width, min_width))
             log("Current: x0=%d, x1=%d" % (x0, x1))
-        inc = min_width / 2
+        inc = (min_width - width) / 2
         x0 = max(0, x0 - inc)
         x1 = min(width - 1, x1 + inc)
         if verbose:
             log("Corrected: x0=%d, x1=%d" % (x0, x1))
 
-    if y1 - y0 + 1 < min_height:
+    # correct height?
+    height = y1 - y0 + 1
+    if height < min_height:
         if verbose:
-            log("Height below min_height=%d, adjusting" % min_height)
+            log("Height below min_height: %d < %d" % (height, min_height))
             log("Current: y0=%d, y1=%d" % (y0, y1))
-        inc = min_height / 2
+        inc = (min_height - height) / 2
         y0 = max(0, y0 - inc)
         y1 = min(width - 1, y1 + inc)
         if verbose:
