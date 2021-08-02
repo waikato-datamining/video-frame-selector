@@ -66,11 +66,11 @@ def load_roiscsv(analysis_file):
             # coordinates
             coords = None
             if "x0" in row:
-                coords = (int(row["x0"]), int(row["y0"]), int(row["x1"]), int(row["y1"]))
+                coords = (int(float(row["x0"])), int(float(row["y0"])), int(float(row["x1"])), int(float(row["y1"])))
             if "x" in row:
-                x = int(row["x"])
-                y = int(row["y"])
-                coords = (x, y, x + int(row["w"]) - 1, y + int(row["h"]) - 1)
+                x = int(float(row["x"]))
+                y = int(float(row["y"]))
+                coords = (x, y, x + int(float(row["w"])) - 1, y + int(float(row["h"])) - 1)
 
             p = Prediction(i, label, score, coords=coords)
             result.append(p)
