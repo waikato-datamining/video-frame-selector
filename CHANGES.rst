@@ -1,10 +1,11 @@
 Changelog
 =========
 
-0.0.3 (????-??-??)
+0.0.3 (2021-08-02)
 ------------------
 
 - added `--poll_interval` option (https://github.com/waikato-datamining/video-frame-selector/issues/2)
+- added logging output for when writing image to disk
 
 
 0.0.2 (2021-07-30)
