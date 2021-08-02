@@ -138,7 +138,7 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         if verbose:
             log("Width below min_width: %d < %d" % (curr_width, min_width))
             log("Current: x0=%d, x1=%d" % (x0, x1))
-        inc = (min_width - curr_width) / 2
+        inc = (min_width - curr_width) // 2
         x0 = max(0, x0 - inc)
         x1 = min(width - 1, x1 + inc)
         if verbose:
@@ -150,7 +150,7 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         if verbose:
             log("Height below min_height: %d < %d" % (curr_height, min_height))
             log("Current: y0=%d, y1=%d" % (y0, y1))
-        inc = (min_height - curr_height) / 2
+        inc = (min_height - curr_height) // 2
         y0 = max(0, y0 - inc)
         y1 = min(height - 1, y1 + inc)
         if verbose:
