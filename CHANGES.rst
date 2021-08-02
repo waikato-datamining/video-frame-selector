@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.0.3 (????-??-??)
+------------------
+
+- added `--poll_interval` option (https://github.com/waikato-datamining/video-frame-selector/issues/2)
+
+
 0.0.2 (2021-07-30)
 ------------------
 

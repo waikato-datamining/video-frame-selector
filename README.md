@@ -43,10 +43,11 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--analysis_tmp DIR] [--analysis_output DIR]
                    [--analysis_timeout SECONDS] [--analysis_type {rois_csv}]
                    [--analysis_keep_files] [--min_score FLOAT]
-                   [--required_labels LIST] [--excluded_labels LIST] --output
-                   DIR_OR_FILE --output_type {jpg,mjpg}
-                   [--output_format FORMAT] [--output_tmp DIR]
-                   [--output_fps FORMAT] [--progress INT] [--verbose]
+                   [--required_labels LIST] [--excluded_labels LIST]
+                   [--poll_interval POLL_INTERVAL] --output DIR_OR_FILE
+                   --output_type {jpg,mjpg} [--output_format FORMAT]
+                   [--output_tmp DIR] [--output_fps FORMAT] [--progress INT]
+                   [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -94,6 +95,9 @@ optional arguments:
                         the comma-separated list of labels that the analysis
                         output must not contain (with high enough scores)
                         (default: None)
+  --poll_interval POLL_INTERVAL
+                        interval in seconds for polling for result files
+                        (default: 0.1)
   --output DIR_OR_FILE  the output directory or file for storing the selected
                         frames (use .avi or .mkv for videos) (default: None)
   --output_type {jpg,mjpg}

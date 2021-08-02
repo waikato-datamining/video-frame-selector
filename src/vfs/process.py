@@ -136,7 +136,7 @@ def check_output(analysis_file, analysis_type, min_score, required_labels, exclu
 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                   analysis_timeout, analysis_type, analysis_keep_files,
-                  min_score, required_labels, excluded_labels,
+                  min_score, required_labels, excluded_labels, poll_interval,
                   verbose):
     """
     Pushes a frame through the image analysis framework and returns whether to keep it or not.
@@ -163,6 +163,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     :type required_labels: list or None
     :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None or empty
     :type excluded_labels: list or None
+    :param poll_interval: the interval in seconds for the file polling
+    :type poll_interval: float
     :return: whether to keep the frame or skip it
     :rtype: bool
     :param verbose: whether to print some logging information
@@ -187,7 +189,6 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
 
     # pass through image analysis
     end = datetime.now().microsecond + analysis_timeout * 10e6
-    inc = 0.1
     while datetime.now().microsecond < end:
         for out_file in out_files:
             if os.path.exists(out_file):
@@ -202,7 +203,7 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                     if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
                 return result
-        sleep(inc)
+        sleep(poll_interval)
 
     # clean up if necessary
     if not analysis_keep_files and os.path.exists(img_in_file):
@@ -215,7 +216,7 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
-            min_score, required_labels, excluded_labels,
+            min_score, required_labels, excluded_labels, poll_interval,
             output, output_type, output_format, output_tmp, output_fps, verbose, progress):
     """
     Processes the input video or webcam feed.
@@ -250,6 +251,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type required_labels: list
     :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None or empty
     :type excluded_labels: list
+    :param poll_interval: the interval in seconds for the file polling
+    :type poll_interval: float
     :param output: the output video oor directory for output images
     :type output: str
     :param output_type: the type of output to generate, see OUTPUT_TYPES
@@ -343,7 +346,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 if analysis_input is not None:
                     if not process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
                                          analysis_timeout, analysis_type, analysis_keep_files, min_score,
-                                         required_labels, excluded_labels, verbose):
+                                         required_labels, excluded_labels, poll_interval, verbose):
                         continue
 
                 frames_processed += 1
@@ -397,6 +400,7 @@ def main(args=None):
     parser.add_argument("--min_score", metavar="FLOAT", help="the minimum score that a prediction must have", required=False, type=float, default=0.0)
     parser.add_argument("--required_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must contain (with high enough scores)", required=False)
     parser.add_argument("--excluded_labels", metavar="LIST", help="the comma-separated list of labels that the analysis output must not contain (with high enough scores)", required=False)
+    parser.add_argument('--poll_interval', type=float, help='interval in seconds for polling for result files', required=False, default=0.1)
     parser.add_argument("--output", metavar="DIR_OR_FILE", help="the output directory or file for storing the selected frames (use .avi or .mkv for videos)", required=True)
     parser.add_argument("--output_type", help="the type of output to generate", choices=OUTPUT_TYPES, required=True)
     parser.add_argument("--output_format", metavar="FORMAT", help="the format string for the images, see https://docs.python.org/3/library/stdtypes.html#old-string-formatting", required=False, default="%06d.jpg")
@@ -420,6 +424,7 @@ def main(args=None):
             analysis_type=parsed.analysis_type, analysis_keep_files=parsed.analysis_keep_files,
             from_frame=parsed.from_frame, to_frame=parsed.to_frame,
             min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
+            poll_interval=parsed.poll_interval,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, verbose=parsed.verbose, progress=parsed.progress)
 
