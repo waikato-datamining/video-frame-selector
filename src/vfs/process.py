@@ -182,10 +182,16 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     if analysis_tmp is not None:
         img_tmp_file = os.path.join(analysis_tmp, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
         img_in_file = os.path.join(analysis_input, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
+        if verbose:
+            log("Writing image: %s" % img_tmp_file)
         cv2.imwrite(img_tmp_file, frame)
+        if verbose:
+            log("Renaming image to: %s" % img_in_file)
         os.rename(img_tmp_file, img_in_file)
     else:
         img_in_file = os.path.join(analysis_input, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
+        if verbose:
+            log("Writing image: %s" % img_in_file)
         cv2.imwrite(img_in_file, frame)
     img_out_file = os.path.join(analysis_output, (ANALYSIS_FORMAT % frameno).replace(".EXT", ".jpg"))
 
