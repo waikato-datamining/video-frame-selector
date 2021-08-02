@@ -6,6 +6,8 @@ Changelog
 
 - added `--crop_to_content` flag that crops the frames to the bounding boxes
   (only when not generating an output video)
+- added `--crop_margin` option to enforce a buffer around cropped region
+- added `--crop_min_width` and `--crop_min_height` options to enforce a minimum width/height
 
 
 0.0.3 (2021-08-02)

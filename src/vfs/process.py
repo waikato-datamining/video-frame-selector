@@ -87,7 +87,8 @@ def check_predictions(predictions, min_score, required_labels, excluded_labels, 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                   analysis_timeout, analysis_type, analysis_keep_files,
                   min_score, required_labels, excluded_labels, poll_interval,
-                  crop_to_content, verbose):
+                  crop_to_content, crop_margin, crop_min_width, crop_min_height,
+                  verbose):
     """
     Pushes a frame through the image analysis framework and returns whether to keep it or not.
 
@@ -117,6 +118,12 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     :type poll_interval: float
     :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
     :type crop_to_content: bool
+    :param crop_margin: the margin to use around the cropped content
+    :type crop_margin: int
+    :param crop_min_width: the minimum width for the cropped content
+    :type crop_min_width: int
+    :param crop_min_height: the minimum height for the cropped content
+    :type crop_min_height: int
     :param verbose: whether to print some logging information
     :type verbose: bool
     :return: tuple (whether to keep the frame or skip it, potentially cropped frame)
@@ -160,7 +167,9 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                     log("Can be included: %s" % str(result))
                 if result:
                     if crop_to_content:
-                        frame = crop_frame(frame, predictions, verbose)
+                        frame = crop_frame(frame, predictions,
+                                           margin=crop_margin, min_width=crop_min_width, min_height=crop_min_height,
+                                           verbose=verbose)
                     if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
                 return result, frame
@@ -178,7 +187,9 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
             min_score, required_labels, excluded_labels, poll_interval,
-            output, output_type, output_format, output_tmp, output_fps, crop_to_content, verbose, progress):
+            output, output_type, output_format, output_tmp, output_fps,
+            crop_to_content, crop_margin, crop_min_width, crop_min_height,
+            verbose, progress):
     """
     Processes the input video or webcam feed.
     
@@ -226,6 +237,12 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type output_fps: int
     :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
     :type crop_to_content: bool
+    :param crop_margin: the margin to use around the cropped content
+    :type crop_margin: int
+    :param crop_min_width: the minimum width for the cropped content
+    :type crop_min_width: int
+    :param crop_min_height: the minimum height for the cropped content
+    :type crop_min_height: int
     :param verbose: whether to print some logging information
     :type verbose: bool
     :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
@@ -310,7 +327,9 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 if analysis_input is not None:
                     keep, frame = process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
                                                 analysis_timeout, analysis_type, analysis_keep_files, min_score,
-                                                required_labels, excluded_labels, poll_interval, crop_to_content, verbose)
+                                                required_labels, excluded_labels, poll_interval,
+                                                crop_to_content, crop_margin, crop_min_width, crop_min_height,
+                                                verbose)
                     if not keep:
                         continue
 
@@ -372,6 +391,9 @@ def main(args=None):
     parser.add_argument("--output_tmp", metavar="DIR", help="the temporary directory to write the output images to before moving them to the output directory (to avoid race conditions with processes that pick up the images)", required=False)
     parser.add_argument("--output_fps", metavar="FORMAT", help="the frames per second to use when generating a video", required=False, type=int, default=25)
     parser.add_argument("--crop_to_content", help="whether to crop the frame to the detected content", action="store_true", required=False)
+    parser.add_argument("--crop_margin", metavar="INT", help="the margin in pixels to use around the determined crop region", required=False, type=int, default=0)
+    parser.add_argument("--crop_min_width", metavar="INT", help="the minimum width for the cropped content", required=False, type=int, default=2)
+    parser.add_argument("--crop_min_height", metavar="INT", help="the minimum height for the cropped content", required=False, type=int, default=2)
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress is being output (in verbose mode)", required=False, type=int, default=100)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
@@ -392,7 +414,9 @@ def main(args=None):
             min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
             poll_interval=parsed.poll_interval,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
-            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, crop_to_content=parsed.crop_to_content,
+            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps,
+            crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
+            crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
             verbose=parsed.verbose, progress=parsed.progress)
 
 

@@ -47,7 +47,9 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--poll_interval POLL_INTERVAL] --output DIR_OR_FILE
                    --output_type {jpg,mjpg} [--output_format FORMAT]
                    [--output_tmp DIR] [--output_fps FORMAT]
-                   [--crop_to_content] [--progress INT] [--verbose]
+                   [--crop_to_content] [--crop_margin INT]
+                   [--crop_min_width INT] [--crop_min_height INT]
+                   [--progress INT] [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -114,6 +116,12 @@ optional arguments:
                         (default: 25)
   --crop_to_content     whether to crop the frame to the detected content
                         (default: False)
+  --crop_margin INT     the margin in pixels to use around the determined crop
+                        region (default: 0)
+  --crop_min_width INT  the minimum width for the cropped content (default: 2)
+  --crop_min_height INT
+                        the minimum height for the cropped content (default:
+                        2)
   --progress INT        every nth frame a progress is being output (in verbose
                         mode) (default: 100)
   --verbose             for more verbose output (default: False)

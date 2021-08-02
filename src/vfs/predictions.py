@@ -1,5 +1,4 @@
 import csv
-import sys
 from vfs.logging import log
 
 
@@ -78,7 +77,7 @@ def load_roiscsv(analysis_file):
     return result
 
 
-def crop_frame(frame, predictions, verbose):
+def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=False):
     """
     Crops the frame according to the content of the predictions.
     If even only a single predictions has no predictions, then no cropping occurs.
@@ -87,6 +86,12 @@ def crop_frame(frame, predictions, verbose):
     :type frame: ndarray
     :param predictions: the list of Prediction objects, can be None
     :type predictions: list
+    :param margin: the margin around the cropped content
+    :type margin: int
+    :param min_width: the minimum width for the cropped content
+    :type min_width: int
+    :param min_height: the minimum height for the cropped content
+    :type min_height: int
     :param verbose: whether to print logging information
     :type verbose: bool
     :return: the (potentially) cropped frame
@@ -96,8 +101,9 @@ def crop_frame(frame, predictions, verbose):
     if predictions is None:
         return frame
 
-    x0 = sys.maxsize
-    y0 = sys.maxsize
+    height, width = frame.shape[:2]
+    x0 = width
+    y0 = height
     x1 = 0
     y1 = 0
 
@@ -109,12 +115,32 @@ def crop_frame(frame, predictions, verbose):
         y0 = min(y0, cy0)
         x1 = max(x1, cx1)
         y1 = max(y1, cy1)
-
-    if (x0 == sys.maxsize) or (y0 == sys.maxsize):
+        
+    if (x0 == width) or (y0 == height):
         if verbose:
             log("Cannot crop")
         return frame
-    else:
+
+    if margin > 0:
+        x0 = max(0, x0 - margin)
+        y0 = max(0, y0 - margin)
+        x1 = min(width - 1, x1 + margin)
+        y1 = min(height - 1, y1 + margin)
+        
+    if x1 - x0 + 1 < min_width:
         if verbose:
-            log("Cropping: x0=%d, y0=%d, x1=%d, y1=%d" % (x0, y0, x1, y1))
-        return frame[y0:y1, x0:x1]
+            log("Width below min_width=%d, adjusting" % min_width)
+        inc = min_width / 2
+        x0 = max(0, x0 - inc)
+        x1 = min(width - 1, x1 + inc)
+
+    if y1 - y0 + 1 < min_height:
+        if verbose:
+            log("Height below min_height=%d, adjusting" % min_height)
+        inc = min_height / 2
+        y0 = max(0, y0 - inc)
+        y1 = min(width - 1, y1 + inc)
+
+    if verbose:
+        log("Cropping: x0=%d, y0=%d, x1=%d, y1=%d" % (x0, y0, x1, y1))
+    return frame[y0:y1, x0:x1]
