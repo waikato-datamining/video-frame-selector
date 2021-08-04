@@ -123,7 +123,7 @@ optional arguments:
                         the minimum height for the cropped content (default:
                         2)
   --output_metadata     whether to output a YAML file alongside the image with
-                        some metadata when output frame images (default:
+                        some metadata when outputting frame images (default:
                         False)
   --progress INT        every nth frame a progress is being output (in verbose
                         mode) (default: 100)

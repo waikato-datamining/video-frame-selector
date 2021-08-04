@@ -416,7 +416,7 @@ def main(args=None):
     parser.add_argument("--crop_margin", metavar="INT", help="the margin in pixels to use around the determined crop region", required=False, type=int, default=0)
     parser.add_argument("--crop_min_width", metavar="INT", help="the minimum width for the cropped content", required=False, type=int, default=2)
     parser.add_argument("--crop_min_height", metavar="INT", help="the minimum height for the cropped content", required=False, type=int, default=2)
-    parser.add_argument("--output_metadata", help="whether to output a YAML file alongside the image with some metadata when output frame images", required=False, action="store_true")
+    parser.add_argument("--output_metadata", help="whether to output a YAML file alongside the image with some metadata when outputting frame images", required=False, action="store_true")
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress is being output (in verbose mode)", required=False, type=int, default=100)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
