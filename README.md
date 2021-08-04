@@ -30,7 +30,7 @@ whether to use a frame or not.
   
 * Output
 
-  * JPG files (using frame number as file name)
+  * JPG files (using frame number as file name) - optional metadata file in YAML format 
   * MJPG video (use either .avi or .mkv as file extension for the container) 
 
 
