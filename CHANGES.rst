@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.0.6 (2021-08-05)
+------------------
+
+- `frames processed` output is now always being output
+- added logging output for frame file and metadata file in `verbose` mode
+
+
 0.0.5 (2021-08-05)
 ------------------
 

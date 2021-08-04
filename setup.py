@@ -39,7 +39,7 @@ setup(
         "opencv-python",
         "pyyaml",
     ],
-    version="0.0.5",
+    version="0.0.6",
     author='Peter Reutemann',
     author_email='fracpete@waikato.ac.nz',
     entry_points={
