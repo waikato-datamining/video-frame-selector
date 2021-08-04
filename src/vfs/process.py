@@ -314,7 +314,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         count += 1
         frames_count += 1
 
-        if verbose and (frames_count % progress == 0):
+        if frames_count % progress == 0:
             log("Frames processed: %d" % frames_count)
 
         # check frame window
@@ -355,24 +355,31 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                         out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(tmp_file, frame)
                         os.rename(tmp_file, out_file)
+                        if verbose:
+                            log("Frame written to: %s" % out_file)
                         if metadata is not None:
                             tmp_file = os.path.splitext(tmp_file)[0] + ".yaml"
                             out_file = os.path.splitext(out_file)[0] + ".yaml"
                             with open(tmp_file, "w") as yf:
                                 safe_dump(metadata, yf)
                             os.rename(tmp_file, out_file)
+                            if verbose:
+                                log("Meta-data written to: %s" % out_file)
                     else:
                         out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(out_file, frame)
+                        if verbose:
+                            log("Frame written to: %s" % out_file)
                         if metadata is not None:
                             out_file = os.path.splitext(out_file)[0] + ".yaml"
                             with open(out_file, "w") as yf:
                                 safe_dump(metadata, yf)
+                            if verbose:
+                                log("Meta-data written to: %s" % out_file)
         else:
             break
 
-    if verbose:
-        log("Frames processed: %d" % frames_count)
+    log("Frames processed: %d" % frames_count)
 
     cap.release()
     if out is not None:
