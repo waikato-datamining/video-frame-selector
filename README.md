@@ -125,8 +125,8 @@ optional arguments:
   --output_metadata     whether to output a YAML file alongside the image with
                         some metadata when outputting frame images (default:
                         False)
-  --progress INT        every nth frame a progress is being output (in verbose
-                        mode) (default: 100)
+  --progress INT        every nth frame a progress message is output on stdout
+                        (default: 100)
   --verbose             for more verbose output (default: False)
 ```
 
