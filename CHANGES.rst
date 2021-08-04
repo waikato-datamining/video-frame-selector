@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.0.5 (2021-08-05)
+------------------
+
+- added `--output_metadata` flag that stores information on predictions and cropping when outputting frames
+
+
 0.0.4 (2021-08-03)
 ------------------
 
