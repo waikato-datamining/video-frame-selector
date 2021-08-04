@@ -4,6 +4,7 @@ import os
 import traceback
 from datetime import datetime
 from time import sleep
+from yaml import safe_dump
 from vfs.predictions import load_roiscsv, crop_frame
 from vfs.logging import log
 
@@ -26,7 +27,7 @@ ANALYSIS_FORMAT = "%06d.EXT"
 """ The file name format to use for the image analysis framework. """
 
 
-def load_output(analysis_file, analysis_type):
+def load_output(analysis_file, analysis_type, metadata):
     """
     Loads the generated analysis output file and returns the predictions.
 
@@ -34,13 +35,19 @@ def load_output(analysis_file, analysis_type):
     :type analysis_file: str
     :param analysis_type: the type of analysis, see ANALYSIS_TYPES
     :type analysis_type: str
+    :param metadata: for attaching metadata
+    :type metadata: dict
     :return: list of Prediction objects
     :rtype: list
     """
     if analysis_type == ANALYSIS_ROISCSV:
-        return load_roiscsv(analysis_file)
+        result = load_roiscsv(analysis_file)
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
+
+    metadata["num_predictions"] = len(result)
+
+    return result
 
 
 def check_predictions(predictions, min_score, required_labels, excluded_labels, verbose):
@@ -152,6 +159,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
 
+    metadata = dict()
+
     # pass through image analysis
     end = datetime.now().microsecond + analysis_timeout * 10e6
     while datetime.now().microsecond < end:
@@ -159,7 +168,7 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
             if os.path.exists(out_file):
                 if verbose:
                     log("Checking analysis output: %s" % out_file)
-                predictions = load_output(out_file, analysis_type)
+                predictions = load_output(out_file, analysis_type, metadata)
                 result = check_predictions(predictions, min_score, required_labels, excluded_labels, verbose)
                 if not analysis_keep_files:
                     os.remove(out_file)
@@ -167,12 +176,12 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                     log("Can be included: %s" % str(result))
                 if result:
                     if crop_to_content:
-                        frame = crop_frame(frame, predictions,
+                        frame = crop_frame(frame, predictions, metadata,
                                            margin=crop_margin, min_width=crop_min_width, min_height=crop_min_height,
                                            verbose=verbose)
                     if not analysis_keep_files and os.path.exists(img_out_file):
                         os.remove(img_out_file)
-                return result, frame
+                return result, frame, metadata
         sleep(poll_interval)
 
     # clean up if necessary
@@ -181,13 +190,13 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     if not analysis_keep_files and os.path.exists(img_out_file):
         os.remove(img_out_file)
 
-    return False, frame
+    return False, frame, metadata
 
 
 def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
             min_score, required_labels, excluded_labels, poll_interval,
-            output, output_type, output_format, output_tmp, output_fps,
+            output, output_type, output_format, output_tmp, output_fps, output_metadata,
             crop_to_content, crop_margin, crop_min_width, crop_min_height,
             verbose, progress):
     """
@@ -235,6 +244,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type output_tmp: str
     :param output_fps: the frames-per-second to use when generating an output video
     :type output_fps: int
+    :param output_metadata: whether to output metadata as YAML file alongside JPG frames
+    :type output_metadata: bool
     :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
     :type crop_to_content: bool
     :param crop_margin: the margin to use around the cropped content
@@ -322,14 +333,15 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         if retval:
             if count >= nth_frame:
                 count = 0
+                metadata = None
 
                 # do we want to keep frame?
                 if analysis_input is not None:
-                    keep, frame = process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
-                                                analysis_timeout, analysis_type, analysis_keep_files, min_score,
-                                                required_labels, excluded_labels, poll_interval,
-                                                crop_to_content, crop_margin, crop_min_width, crop_min_height,
-                                                verbose)
+                    keep, frame, metadata = process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
+                                                          analysis_timeout, analysis_type, analysis_keep_files, min_score,
+                                                          required_labels, excluded_labels, poll_interval,
+                                                          crop_to_content, crop_margin, crop_min_width, crop_min_height,
+                                                          verbose)
                     if not keep:
                         continue
 
@@ -343,9 +355,19 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                         out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(tmp_file, frame)
                         os.rename(tmp_file, out_file)
+                        if metadata is not None:
+                            tmp_file = os.path.splitext(tmp_file)[0] + ".yaml"
+                            out_file = os.path.splitext(out_file)[0] + ".yaml"
+                            with open(tmp_file, "w") as yf:
+                                safe_dump(metadata, yf)
+                            os.rename(tmp_file, out_file)
                     else:
                         out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(out_file, frame)
+                        if metadata is not None:
+                            out_file = os.path.splitext(out_file)[0] + ".yaml"
+                            with open(out_file, "w") as yf:
+                                safe_dump(metadata, yf)
         else:
             break
 
@@ -394,6 +416,7 @@ def main(args=None):
     parser.add_argument("--crop_margin", metavar="INT", help="the margin in pixels to use around the determined crop region", required=False, type=int, default=0)
     parser.add_argument("--crop_min_width", metavar="INT", help="the minimum width for the cropped content", required=False, type=int, default=2)
     parser.add_argument("--crop_min_height", metavar="INT", help="the minimum height for the cropped content", required=False, type=int, default=2)
+    parser.add_argument("--output_metadata", help="whether to output a YAML file alongside the image with some metadata when output frame images", required=False, action="store_true")
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress is being output (in verbose mode)", required=False, type=int, default=100)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
@@ -414,7 +437,7 @@ def main(args=None):
             min_score=parsed.min_score, required_labels=required_labels, excluded_labels=excluded_labels,
             poll_interval=parsed.poll_interval,
             output=parsed.output, output_type=parsed.output_type, output_format=parsed.output_format,
-            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps,
+            output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, output_metadata=parsed.output_metadata,
             crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
             crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
             verbose=parsed.verbose, progress=parsed.progress)

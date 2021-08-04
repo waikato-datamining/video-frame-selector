@@ -77,7 +77,7 @@ def load_roiscsv(analysis_file):
     return result
 
 
-def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=False):
+def crop_frame(frame, predictions, metadata, margin=0, min_width=2, min_height=2, verbose=False):
     """
     Crops the frame according to the content of the predictions.
     If even only a single predictions has no predictions, then no cropping occurs.
@@ -86,6 +86,8 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
     :type frame: ndarray
     :param predictions: the list of Prediction objects, can be None
     :type predictions: list
+    :param metadata: for attaching metadata
+    :type metadata: dict
     :param margin: the margin around the cropped content
     :type margin: int
     :param min_width: the minimum width for the cropped content
@@ -98,10 +100,15 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
     :rtype: ndarray
     """
 
+    height, width = frame.shape[:2]
+    metadata["frame"] = {
+        "width": width,
+        "height": height,
+    }
+
     if predictions is None:
         return frame
 
-    height, width = frame.shape[:2]
     if verbose:
         log("Frame width x height: %d x %d" % (width, height))
 
@@ -123,7 +130,16 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
     if (x0 == width) or (y0 == height):
         if verbose:
             log("Cannot crop")
+        metadata["cropped"] = False
         return frame
+
+    metadata["cropped"] = True
+    metadata["minimal_bbox"] = {
+        "x0": x0,
+        "y0": y0,
+        "x1": x1,
+        "y1": y1,
+    }
 
     # add margin?
     if margin > 0:
@@ -131,6 +147,12 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         y0 = max(0, y0 - margin)
         x1 = min(width - 1, x1 + margin)
         y1 = min(height - 1, y1 + margin)
+        metadata["margin_bbox"] = {
+            "x0": x0,
+            "y0": y0,
+            "x1": x1,
+            "y1": y1,
+        }
 
     # correct width?
     curr_width = x1 - x0 + 1
@@ -155,6 +177,13 @@ def crop_frame(frame, predictions, margin=0, min_width=2, min_height=2, verbose=
         y1 = min(height - 1, y0 + min_height)
         if verbose:
             log("Corrected: y0=%d, y1=%d" % (y0, y1))
+
+    metadata["crop_bbox"] = {
+        "x0": x0,
+        "y0": y0,
+        "x1": x1,
+        "y1": y1,
+    }
 
     if verbose:
         log("Cropping: x0=%d, y0=%d, x1=%d, y1=%d" % (x0, y0, x1, y1))

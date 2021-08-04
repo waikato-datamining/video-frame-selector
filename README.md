@@ -49,7 +49,7 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--output_tmp DIR] [--output_fps FORMAT]
                    [--crop_to_content] [--crop_margin INT]
                    [--crop_min_width INT] [--crop_min_height INT]
-                   [--progress INT] [--verbose]
+                   [--output_metadata] [--progress INT] [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -122,85 +122,10 @@ optional arguments:
   --crop_min_height INT
                         the minimum height for the cropped content (default:
                         2)
+  --output_metadata     whether to output a YAML file alongside the image with
+                        some metadata when output frame images (default:
+                        False)
   --progress INT        every nth frame a progress is being output (in verbose
                         mode) (default: 100)
   --verbose             for more verbose output (default: False)
-```
-
-## Example
-
-Directory structure:
-
-```
-/some/where
-|
-|- cache (pytorch cache)
-|
-|- data (contains videos and detectron training data)
-|
-|- output (detectron2 models etc)
-|
-|- d2 (detectron work area)
-|  |
-|  +- in
-|  |
-|  +- tmp
-|  |
-|  +- out
-|
-|- vfs (vfs work area)
-|  |
-|  +- in
-|  |
-|  +- tmp
-|  |
-|  +- out (contains frames to keep)
-```
-
-Running [detectron2](https://github.com/waikato-datamining/pytorch/tree/master/detectron2) 
-to detect farm animals (Goat, Cow, Chicken): 
-
-```commandline
-docker run --gpus=all --shm-size 8G -u $(id -u):$(id -g) -e USER=$USER \
-    -v /some/where:/opt/projects \
-    -v /some/where/cache:/.torch \
-    -it public.aml-repo.cms.waikato.ac.nz:443/pytorch/detectron2:0.3
-
-DATASET=/opt/projects/data/animal_farm
-OUTPUT=/opt/projects/output/animal_farm
-CONFIG=mask_rcnn_R_50_FPN_1x.yaml 
-
-d2_predict \
-  --model $OUTPUT/model_final.pth \
-  --config $OUTPUT/$CONFIG \
-  --labels $DATASET/train/labels.txt \
-  --prediction_in /opt/projects/d2/in/ \
-  --prediction_tmp /opt/projects/d2/tmp/ \
-  --prediction_out /opt/projects/d2/out/ \
-  --delete_input \
-  --max_files 10 \
-  --use_watchdog \
-  --continuous
-```
-
-Feeding in images from a video, but only keeping frames with *Goat* detections with a score of at least 0.8:
-
-```commandline
-vfs-process \ 
-  --input "/some/where/data/my_farm.avi" \
-  --input_type video \
-  --nth_frame 10 \
-  --analysis_input /some/where/d2/in \
-  --analysis_tmp /some/where/vfs/tmp \
-  --analysis_output /some/where/d2/out \
-  --min_score 0.8 \
-  --required_labels Goat \
-  --output /some/where/vfs/out \
-  --output_type jpg \
-  --verbose \
-  --progress 100 \
-  --poll_interval 0.01 \
-  --crop_to_content \
-  --crop_min_width 600 \
-  --crop_min_height 600
 ```

@@ -37,6 +37,7 @@ setup(
     ],
     install_requires=[
         "opencv-python",
+        "pyyaml",
     ],
     version="0.0.4",
     author='Peter Reutemann',
