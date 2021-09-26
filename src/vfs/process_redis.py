@@ -117,6 +117,7 @@ def process_image(frame, frameno, redis_conn, analysis_type,
         redis_conn.pubsub.close()
         redis_conn.pubsub = None
 
+    redis_conn.pubsub = redis_conn.redis.pubsub()
     redis_conn.pubsub.psubscribe(**{redis_conn.channel_in: anon_handler})
     redis_conn.pubsub_thread = redis_conn.pubsub.run_in_thread(sleep_time=0.001)
     redis_conn.redis.publish(redis_conn.channel_out, frame_str)
@@ -377,7 +378,6 @@ def main(args=None):
     # setup redis connection
     redis_conn = RedisConnection()
     redis_conn.redis = redis.Redis(host=parsed.redis_host, port=parsed.redis_port, db=parsed.redis_db)
-    redis_conn.pubsub = redis_conn.redis.pubsub()
     redis_conn.channel_in = parsed.redis_in
     redis_conn.channel_out = parsed.redis_out
     redis_conn.timeout = parsed.redis_timeout
