@@ -5,7 +5,7 @@ Changelog
 ------------------
 
 - `process.py` now adheres to the `--output_metadata` flag
-- ...
+- `process_redis.py` allows processing of frames via Redis backend
 
 
 0.0.6 (2021-08-05)
