@@ -5,7 +5,7 @@ import traceback
 from datetime import datetime
 from time import sleep
 from yaml import safe_dump
-from vfs.predictions import load_roiscsv, crop_frame
+from vfs.predictions import load_roiscsv, load_opexjson, crop_frame, check_predictions
 from vfs.logging import log
 
 
@@ -15,7 +15,8 @@ INPUT_TYPES = [INPUT_VIDEO, INPUT_WEBCAM]
 """ The available input types. """
 
 ANALYSIS_ROISCSV = "rois_csv"
-ANALYSIS_TYPES = [ANALYSIS_ROISCSV]
+ANALYSIS_OPEXJSON = "opex_json"
+ANALYSIS_TYPES = [ANALYSIS_ROISCSV, ANALYSIS_OPEXJSON]
 """ The available analysis file types. """
 
 OUTPUT_JPG = "jpg"
@@ -42,51 +43,12 @@ def load_output(analysis_file, analysis_type, metadata):
     """
     if analysis_type == ANALYSIS_ROISCSV:
         result = load_roiscsv(analysis_file)
+    elif analysis_type == ANALYSIS_OPEXJSON:
+        result = load_opexjson(analysis_file)
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
 
     metadata["num_predictions"] = len(result)
-
-    return result
-
-
-def check_predictions(predictions, min_score, required_labels, excluded_labels, verbose):
-    """
-    Checks whether the frame processed by the image analysis process can be included in the output.
-
-    :param predictions: the list of Prediction objects to check
-    :type predictions: list
-    :param min_score: the minimum score the predictions must have to be considered
-    :type min_score: float
-    :param required_labels: the list of labels that must have the specified min_score, ignored if None
-    :type required_labels: list or None
-    :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None
-    :type excluded_labels: list or None
-    :param verbose: whether to print some logging information
-    :type verbose: bool
-    :return: whether to include the frame or not
-    :rtype: bool
-    """
-
-    if (required_labels is None) and (excluded_labels is None):
-        return True
-
-    # check predictions
-    result = None
-    for p in predictions:
-        if (required_labels is not None) and (len(required_labels) > 0):
-            if (p.label in required_labels) and (p.score >= min_score):
-                if verbose:
-                    log("Required label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
-                result = True
-
-        if (excluded_labels is not None) and (len(excluded_labels) > 0):
-            if (p.label in excluded_labels) and (p.score >= min_score):
-                if verbose:
-                    log("Excluded label '%s' has score of %f (>= min score: %f)" % (p.label, p.score, min_score))
-                result = False
-    if result is None:
-        result = False
 
     return result
 
@@ -156,6 +118,9 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
         name1 = (ANALYSIS_FORMAT % frameno).replace(".EXT", "-rois.csv")
         name2 = (ANALYSIS_FORMAT % frameno).replace(".EXT", ".csv")
         out_files = [os.path.join(analysis_output, name1), os.path.join(analysis_output, name2)]
+    elif analysis_type == ANALYSIS_OPEXJSON:
+        name1 = (ANALYSIS_FORMAT % frameno).replace(".EXT", ".json")
+        out_files = [os.path.join(analysis_output, name1)]
     else:
         raise Exception("Unhandled analysis type: %s" % analysis_type)
 
@@ -357,7 +322,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                         os.rename(tmp_file, out_file)
                         if verbose:
                             log("Frame written to: %s" % out_file)
-                        if metadata is not None:
+                        if output_metadata and (metadata is not None):
                             tmp_file = os.path.splitext(tmp_file)[0] + ".yaml"
                             out_file = os.path.splitext(out_file)[0] + ".yaml"
                             with open(tmp_file, "w") as yf:
@@ -370,7 +335,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                         cv2.imwrite(out_file, frame)
                         if verbose:
                             log("Frame written to: %s" % out_file)
-                        if metadata is not None:
+                        if output_metadata and (metadata is not None):
                             out_file = os.path.splitext(out_file)[0] + ".yaml"
                             with open(out_file, "w") as yf:
                                 safe_dump(metadata, yf)

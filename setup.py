@@ -38,6 +38,7 @@ setup(
     install_requires=[
         "opencv-python",
         "pyyaml",
+        "opex",
     ],
     version="0.0.6",
     author='Peter Reutemann',
@@ -45,6 +46,7 @@ setup(
     entry_points={
         "console_scripts": [
             "vfs-process=vfs.process:sys_main",
+            "vfs-process-redis=vfs.process_redis:sys_main",
         ]
     }
 )

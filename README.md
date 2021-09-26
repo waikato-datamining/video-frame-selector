@@ -27,6 +27,7 @@ whether to use a frame or not.
 * Image analysis output
 
   * [ROI CSV](https://github.com/waikato-ufdl/wai-annotations-roi)
+  * [OPEX JSON](https://github.com/WaikatoLink2020/objdet-predictions-exchange-format)
   
 * Output
 
@@ -41,7 +42,8 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--nth_frame INT] [--max_frames INT] [--from_frame INT]
                    [--to_frame INT] [--analysis_input DIR]
                    [--analysis_tmp DIR] [--analysis_output DIR]
-                   [--analysis_timeout SECONDS] [--analysis_type {rois_csv}]
+                   [--analysis_timeout SECONDS]
+                   [--analysis_type {rois_csv,opex_json}]
                    [--analysis_keep_files] [--min_score FLOAT]
                    [--required_labels LIST] [--excluded_labels LIST]
                    [--poll_interval POLL_INTERVAL] --output DIR_OR_FILE
@@ -81,7 +83,7 @@ optional arguments:
   --analysis_timeout SECONDS
                         the maximum number of seconds to wait for the image
                         analysis to finish processing (default: 10)
-  --analysis_type {rois_csv}
+  --analysis_type {rois_csv,opex_json}
                         the type of output the analysis process generates
                         (default: rois_csv)
   --analysis_keep_files
