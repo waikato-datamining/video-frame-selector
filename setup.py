@@ -39,6 +39,7 @@ setup(
         "opencv-python",
         "pyyaml",
         "opex",
+        "redis",
     ],
     version="0.0.6",
     author='Peter Reutemann',
