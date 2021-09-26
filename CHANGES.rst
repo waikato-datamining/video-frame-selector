@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.7 (????-??-??)
+0.0.7 (2021-09-27)
 ------------------
 
 - `process.py` now adheres to the `--output_metadata` flag
