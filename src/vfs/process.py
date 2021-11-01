@@ -9,9 +9,13 @@ from vfs.predictions import load_roiscsv, load_opexjson, crop_frame, check_predi
 from vfs.logging import log
 
 
+IMAGE_EXTENSIONS = [".jpg", ".png"]
+""" the supported image types. """
+
+INPUT_IMAGE_DIR = "image_dir"
 INPUT_VIDEO = "video"
 INPUT_WEBCAM = "webcam"
-INPUT_TYPES = [INPUT_VIDEO, INPUT_WEBCAM]
+INPUT_TYPES = [INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM]
 """ The available input types. """
 
 ANALYSIS_ROISCSV = "rois_csv"
@@ -26,6 +30,29 @@ OUTPUT_TYPES = [OUTPUT_JPG, OUTPUT_MJPG]
 
 ANALYSIS_FORMAT = "%06d.EXT"
 """ The file name format to use for the image analysis framework. """
+
+
+def list_images(path):
+    """
+    Lists the images in the specified directory and returns a sorted list of
+    absolute file names.
+
+    :param path: the directory to scan for images
+    :type path: str
+    :return: the list of absolute file names
+    :rtype: list
+    """
+    result = []
+    for f in os.listdir(path):
+        full = os.path.join(path, f)
+        if not os.path.isfile(full):
+            continue
+        ext = os.path.splitext(full)[1].lower()
+        if ext not in IMAGE_EXTENSIONS:
+            continue
+        result.append(full)
+    result.sort()
+    return result
 
 
 def load_output(analysis_file, analysis_type, metadata):
@@ -228,7 +255,13 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     # open input
     if input_type not in INPUT_TYPES:
         raise Exception("Unknown input type: %s" % input_type)
-    if input_type == INPUT_VIDEO:
+    cap = None
+    files = None
+    if input_type == INPUT_IMAGE_DIR:
+        if verbose:
+            log("Listing images in: %s" % input)
+        files = list_images(input)
+    elif input_type == INPUT_VIDEO:
         if verbose:
             log("Opening input video: %s" % input)
         cap = cv2.VideoCapture(input)
@@ -275,7 +308,12 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     frames_processed = 0
     while cap.isOpened():
         # next frame
-        retval, frame = cap.read()
+        if cap is not None:
+            retval, frame = cap.read()
+        else:
+            retval = count < len(files)
+            if retval:
+                frame = cv2.imread(files[count])
         count += 1
         frames_count += 1
 
@@ -346,7 +384,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
 
     log("Frames processed: %d" % frames_count)
 
-    cap.release()
+    if cap is not None:
+        cap.release()
     if out is not None:
         out.release()
 
@@ -363,7 +402,7 @@ def main(args=None):
         description="Tool for replaying videos or grabbing frames from webcam, presenting it to an image analysis "
                     + "framework to determine whether to include the frame in the output.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input", metavar="FILE_OR_ID", help="the video file to read or the webcam ID", required=True)
+    parser.add_argument("--input", metavar="DIR_OR_FILE_OR_ID", help="the dir with images, video file to read or the webcam ID", required=True)
     parser.add_argument("--input_type", help="the input type", choices=INPUT_TYPES, required=True)
     parser.add_argument("--nth_frame", metavar="INT", help="every nth frame gets presented to the analysis process", required=False, type=int, default=10)
     parser.add_argument("--max_frames", metavar="INT", help="the maximum number of processed frames before exiting (<=0 for unlimited)", required=False, type=int, default=0)
