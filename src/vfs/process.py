@@ -320,8 +320,6 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
             retval = frames_count < len(files)
             if retval:
                 frame = cv2.imread(files[frames_count])
-            else:
-                files = None
         count += 1
         frames_count += 1
 
