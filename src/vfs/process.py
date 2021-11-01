@@ -32,19 +32,23 @@ ANALYSIS_FORMAT = "%06d.EXT"
 """ The file name format to use for the image analysis framework. """
 
 
-def list_images(path):
+def list_images(image_path, verbose=False):
     """
     Lists the images in the specified directory and returns a sorted list of
     absolute file names.
 
-    :param path: the directory to scan for images
-    :type path: str
+    :param image_path: the directory to scan for images
+    :type image_path: str
+    :param verbose: whether to be verbose
+    :type verbose: bool
     :return: the list of absolute file names
     :rtype: list
     """
     result = []
-    for f in os.listdir(path):
-        full = os.path.join(path, f)
+    if verbose:
+        log("Looking for images in: %s" % image_path)
+    for f in os.listdir(image_path):
+        full = os.path.join(image_path, f)
         if not os.path.isfile(full):
             continue
         ext = os.path.splitext(full)[1].lower()
@@ -52,6 +56,8 @@ def list_images(path):
             continue
         result.append(full)
     result.sort()
+    if verbose:
+        log("# of images found: %d" % len(result))
     return result
 
 
@@ -249,7 +255,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :param verbose: whether to print some logging information
     :type verbose: bool
     :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
-    :type progress: int`
+    :type progress: int
     """
 
     # open input
@@ -258,9 +264,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     cap = None
     files = None
     if input_type == INPUT_IMAGE_DIR:
-        if verbose:
-            log("Listing images in: %s" % input)
-        files = list_images(input)
+        files = list_images(input, verbose=verbose)
     elif input_type == INPUT_VIDEO:
         if verbose:
             log("Opening input video: %s" % input)
@@ -311,13 +315,15 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
         if cap is not None:
             retval, frame = cap.read()
         else:
-            retval = count < len(files)
+            retval = frames_count < len(files)
             if retval:
-                frame = cv2.imread(files[count])
+                frame = cv2.imread(files[frames_count])
+            else:
+                files = None
         count += 1
         frames_count += 1
 
-        if frames_count % progress == 0:
+        if (frames_count % progress) == 0:
             log("Frames processed: %d" % frames_count)
 
         # check frame window
