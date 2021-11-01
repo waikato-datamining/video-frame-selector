@@ -306,7 +306,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     count = 0
     frames_count = 0
     frames_processed = 0
-    while cap.isOpened():
+    while ((cap is not None) and cap.isOpened()) or (files is not None):
         # next frame
         if cap is not None:
             retval, frame = cap.read()
