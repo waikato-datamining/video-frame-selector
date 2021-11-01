@@ -196,7 +196,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
             min_score, required_labels, excluded_labels, poll_interval,
             output, output_type, output_format, output_tmp, output_fps, output_metadata,
             crop_to_content, crop_margin, crop_min_width, crop_min_height,
-            verbose, progress):
+            verbose, progress, keep_original):
     """
     Processes the input video or webcam feed.
     
