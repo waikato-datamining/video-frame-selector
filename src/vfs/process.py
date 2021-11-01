@@ -359,9 +359,14 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 if out is not None:
                     out.write(frame)
                 else:
-                    if output_tmp is not None:
+                    # keep original filename when using image_dir
+                    if files is not None:
+                        tmp_file = os.path.join(output_tmp, os.path.basename(files[frames_count]))
+                        out_file = os.path.join(output, os.path.basename(files[frames_count]))
+                    else:
                         tmp_file = os.path.join(output_tmp, output_format % frames_count)
                         out_file = os.path.join(output, output_format % frames_count)
+                    if output_tmp is not None:
                         cv2.imwrite(tmp_file, frame)
                         os.rename(tmp_file, out_file)
                         if verbose:
@@ -375,7 +380,6 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                             if verbose:
                                 log("Meta-data written to: %s" % out_file)
                     else:
-                        out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(out_file, frame)
                         if verbose:
                             log("Frame written to: %s" % out_file)
