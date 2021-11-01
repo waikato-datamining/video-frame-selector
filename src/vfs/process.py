@@ -256,6 +256,8 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type verbose: bool
     :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
     :type progress: int
+    :param keep_original: whether to keep the original filename when processing an image dir
+    :type keep_original: bool
     """
 
     # open input
@@ -360,7 +362,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                     out.write(frame)
                 else:
                     # keep original filename when using image_dir
-                    if files is not None:
+                    if (files is not None) and keep_original:
                         tmp_file = os.path.join(output_tmp, os.path.basename(files[frames_count]))
                         out_file = os.path.join(output, os.path.basename(files[frames_count]))
                     else:
@@ -439,6 +441,7 @@ def main(args=None):
     parser.add_argument("--crop_min_height", metavar="INT", help="the minimum height for the cropped content", required=False, type=int, default=2)
     parser.add_argument("--output_metadata", help="whether to output a YAML file alongside the image with some metadata when outputting frame images", required=False, action="store_true")
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress message is output on stdout", required=False, type=int, default=100)
+    parser.add_argument("--keep_original", help="keeps the original file name when processing an image dir", action="store_true", required=False)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
 
@@ -461,7 +464,7 @@ def main(args=None):
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, output_metadata=parsed.output_metadata,
             crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
             crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
-            verbose=parsed.verbose, progress=parsed.progress)
+            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original)
 
 
 def sys_main():
