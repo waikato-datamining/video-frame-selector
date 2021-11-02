@@ -8,9 +8,34 @@ from time import sleep
 from yaml import safe_dump
 
 from vfs.common import INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM, INPUT_TYPES, ANALYSIS_ROISCSV, ANALYSIS_OPEXJSON, \
-    ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, list_images, load_output
+    ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, list_images
 from vfs.predictions import load_roiscsv_from_str, load_opexjson_from_str, crop_frame, check_predictions
 from vfs.logging import log
+
+
+def load_output(analysis_str, analysis_type, metadata):
+    """
+    Loads the generated analysis output file and returns the predictions.
+
+    :param analysis_str: the file to check
+    :type analysis_str: str
+    :param analysis_type: the type of analysis, see ANALYSIS_TYPES
+    :type analysis_type: str
+    :param metadata: for attaching metadata
+    :type metadata: dict
+    :return: list of Prediction objects
+    :rtype: list
+    """
+    if analysis_type == ANALYSIS_ROISCSV:
+        result = load_roiscsv_from_str(analysis_str)
+    elif analysis_type == ANALYSIS_OPEXJSON:
+        result = load_opexjson_from_str(analysis_str)
+    else:
+        raise Exception("Unhandled analysis type: %s" % analysis_type)
+
+    metadata["num_predictions"] = len(result)
+
+    return result
 
 
 class RedisConnection(object):

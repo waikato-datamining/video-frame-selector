@@ -53,28 +53,3 @@ def list_images(image_path, verbose=False):
     if verbose:
         log("# of images found: %d" % len(result))
     return result
-
-
-def load_output(analysis_file, analysis_type, metadata):
-    """
-    Loads the generated analysis output file and returns the predictions.
-
-    :param analysis_file: the file to check
-    :type analysis_file: str
-    :param analysis_type: the type of analysis, see ANALYSIS_TYPES
-    :type analysis_type: str
-    :param metadata: for attaching metadata
-    :type metadata: dict
-    :return: list of Prediction objects
-    :rtype: list
-    """
-    if analysis_type == ANALYSIS_ROISCSV:
-        result = load_roiscsv(analysis_file)
-    elif analysis_type == ANALYSIS_OPEXJSON:
-        result = load_opexjson(analysis_file)
-    else:
-        raise Exception("Unhandled analysis type: %s" % analysis_type)
-
-    metadata["num_predictions"] = len(result)
-
-    return result

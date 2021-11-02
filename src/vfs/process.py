@@ -7,8 +7,8 @@ from time import sleep
 from yaml import safe_dump
 
 from vfs.common import INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM, INPUT_TYPES, ANALYSIS_ROISCSV, ANALYSIS_OPEXJSON, \
-    ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, ANALYSIS_FORMAT, list_images, load_output
-from vfs.predictions import crop_frame, check_predictions
+    ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, ANALYSIS_FORMAT, list_images
+from vfs.predictions import crop_frame, check_predictions, load_roiscsv, load_opexjson
 from vfs.logging import log
 
 
@@ -21,6 +21,31 @@ def cleanup_file(path):
     """
     if os.path.exists(path):
         os.remove(path)
+
+
+def load_output(analysis_file, analysis_type, metadata):
+    """
+    Loads the generated analysis output file and returns the predictions.
+
+    :param analysis_file: the file to check
+    :type analysis_file: str
+    :param analysis_type: the type of analysis, see ANALYSIS_TYPES
+    :type analysis_type: str
+    :param metadata: for attaching metadata
+    :type metadata: dict
+    :return: list of Prediction objects
+    :rtype: list
+    """
+    if analysis_type == ANALYSIS_ROISCSV:
+        result = load_roiscsv(analysis_file)
+    elif analysis_type == ANALYSIS_OPEXJSON:
+        result = load_opexjson(analysis_file)
+    else:
+        raise Exception("Unhandled analysis type: %s" % analysis_type)
+
+    metadata["num_predictions"] = len(result)
+
+    return result
 
 
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
