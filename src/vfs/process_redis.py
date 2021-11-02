@@ -6,27 +6,11 @@ import traceback
 from datetime import datetime
 from time import sleep
 from yaml import safe_dump
+
+from vfs.common import INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM, INPUT_TYPES, ANALYSIS_ROISCSV, ANALYSIS_OPEXJSON, \
+    ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, list_images, load_output
 from vfs.predictions import load_roiscsv_from_str, load_opexjson_from_str, crop_frame, check_predictions
 from vfs.logging import log
-
-
-INPUT_VIDEO = "video"
-INPUT_WEBCAM = "webcam"
-INPUT_TYPES = [INPUT_VIDEO, INPUT_WEBCAM]
-""" The available input types. """
-
-ANALYSIS_ROISCSV = "rois_csv"
-ANALYSIS_OPEXJSON = "opex_json"
-ANALYSIS_TYPES = [ANALYSIS_ROISCSV, ANALYSIS_OPEXJSON]
-""" The available analysis file types. """
-
-OUTPUT_JPG = "jpg"
-OUTPUT_MJPG = "mjpg"
-OUTPUT_TYPES = [OUTPUT_JPG, OUTPUT_MJPG]
-""" The available output types. """
-
-ANALYSIS_FORMAT = "%06d.EXT"
-""" The file name format to use for the image analysis framework. """
 
 
 class RedisConnection(object):
@@ -44,31 +28,6 @@ class RedisConnection(object):
         self.data = None
 
 
-def load_output(analysis_str, analysis_type, metadata):
-    """
-    Loads the generated analysis output file and returns the predictions.
-
-    :param analysis_str: the file to check
-    :type analysis_str: str
-    :param analysis_type: the type of analysis, see ANALYSIS_TYPES
-    :type analysis_type: str
-    :param metadata: for attaching metadata
-    :type metadata: dict
-    :return: list of Prediction objects
-    :rtype: list
-    """
-    if analysis_type == ANALYSIS_ROISCSV:
-        result = load_roiscsv_from_str(analysis_str)
-    elif analysis_type == ANALYSIS_OPEXJSON:
-        result = load_opexjson_from_str(analysis_str)
-    else:
-        raise Exception("Unhandled analysis type: %s" % analysis_type)
-
-    metadata["num_predictions"] = len(result)
-
-    return result
-
-
 def process_image(frame, frameno, redis_conn, analysis_type,
                   min_score, required_labels, excluded_labels,
                   crop_to_content, crop_margin, crop_min_width, crop_min_height,
@@ -84,16 +43,12 @@ def process_image(frame, frameno, redis_conn, analysis_type,
     :type redis_conn: RedisConnection
     :param analysis_type: the type of output the analysis is generated, see ANALYSIS_TYPES
     :type analysis_type: str
-    :param analysis_keep_files: whether to keep the analysis files rather than deleting them
-    :type analysis_keep_files: bool
     :param min_score: the minimum score that the predictions have to have
     :type min_score: float
     :param required_labels: the list of labels that must have the specified min_score, ignored if None or empty
     :type required_labels: list or None
     :param excluded_labels: the list of labels that must not have the specified min_score, ignored if None or empty
     :type excluded_labels: list or None
-    :param poll_interval: the interval in seconds for the file polling
-    :type poll_interval: float
     :param crop_to_content: whether to crop the frame to the content (eg bounding boxes)
     :type crop_to_content: bool
     :param crop_margin: the margin to use around the cropped content
@@ -155,11 +110,11 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
             min_score, required_labels, excluded_labels,
             output, output_type, output_format, output_tmp, output_fps, output_metadata,
             crop_to_content, crop_margin, crop_min_width, crop_min_height,
-            verbose, progress):
+            verbose, progress, keep_original):
     """
     Processes the input video or webcam feed.
     
-    :param input: the input video or webcam ID
+    :param input: the input dir, video or webcam ID
     :type input: str
     :param input_type: the type of input, INPUT_TYPES
     :type input_type: str
@@ -204,13 +159,19 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
     :param verbose: whether to print some logging information
     :type verbose: bool
     :param progress: in verbose mode, outputs a progress line every x frames with how many frames have been processed
-    :type progress: int`
+    :type progress: int
+    :param keep_original: whether to keep the original filename when processing an image dir
+    :type keep_original: bool
     """
 
     # open input
     if input_type not in INPUT_TYPES:
         raise Exception("Unknown input type: %s" % input_type)
-    if input_type == INPUT_VIDEO:
+    cap = None
+    files = None
+    if input_type == INPUT_IMAGE_DIR:
+        files = list_images(input, verbose=verbose)
+    elif input_type == INPUT_VIDEO:
         if verbose:
             log("Opening input video: %s" % input)
         cap = cv2.VideoCapture(input)
@@ -251,9 +212,14 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
     count = 0
     frames_count = 0
     frames_processed = 0
-    while cap.isOpened():
+    while ((cap is not None) and cap.isOpened()) or (files is not None):
         # next frame
-        retval, frame = cap.read()
+        if cap is not None:
+            retval, frame = cap.read()
+        else:
+            retval = frames_count < len(files)
+            if retval:
+                frame = cv2.imread(files[frames_count])
         count += 1
         frames_count += 1
 
@@ -289,9 +255,17 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                 if out is not None:
                     out.write(frame)
                 else:
-                    if output_tmp is not None:
-                        tmp_file = os.path.join(output_tmp, output_format % frames_count)
+                    # keep original filename when using image_dir
+                    tmp_file = None
+                    if (files is not None) and keep_original:
+                        if output_tmp is not None:
+                            tmp_file = os.path.join(output_tmp, os.path.basename(files[frames_count - 1]))
+                        out_file = os.path.join(output, os.path.basename(files[frames_count - 1]))
+                    else:
+                        if output_tmp is not None:
+                            tmp_file = os.path.join(output_tmp, output_format % frames_count)
                         out_file = os.path.join(output, output_format % frames_count)
+                    if output_tmp is not None:
                         cv2.imwrite(tmp_file, frame)
                         os.rename(tmp_file, out_file)
                         if verbose:
@@ -305,7 +279,6 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                             if verbose:
                                 log("Meta-data written to: %s" % out_file)
                     else:
-                        out_file = os.path.join(output, output_format % frames_count)
                         cv2.imwrite(out_file, frame)
                         if verbose:
                             log("Frame written to: %s" % out_file)
@@ -337,7 +310,7 @@ def main(args=None):
         description="Tool for replaying videos or grabbing frames from webcam, presenting it to an image analysis "
                     + "framework to determine whether to include the frame in the output. Uses Redis to exchange data.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input", metavar="FILE_OR_ID", help="the video file to read or the webcam ID", required=True)
+    parser.add_argument("--input", metavar="DIR_OR_FILE_OR_ID", help="the dir with images, video file to read or the webcam ID", required=True)
     parser.add_argument("--input_type", help="the input type", choices=INPUT_TYPES, required=True)
     parser.add_argument("--nth_frame", metavar="INT", help="every nth frame gets presented to the analysis process", required=False, type=int, default=10)
     parser.add_argument("--max_frames", metavar="INT", help="the maximum number of processed frames before exiting (<=0 for unlimited)", required=False, type=int, default=0)
@@ -364,6 +337,7 @@ def main(args=None):
     parser.add_argument("--crop_min_height", metavar="INT", help="the minimum height for the cropped content", required=False, type=int, default=2)
     parser.add_argument("--output_metadata", help="whether to output a YAML file alongside the image with some metadata when outputting frame images", required=False, action="store_true")
     parser.add_argument("--progress", metavar="INT", help="every nth frame a progress message is output on stdout", required=False, type=int, default=100)
+    parser.add_argument("--keep_original", help="keeps the original file name when processing an image dir", action="store_true", required=False)
     parser.add_argument("--verbose", help="for more verbose output", action="store_true", required=False)
     parsed = parser.parse_args(args=args)
 
@@ -390,7 +364,7 @@ def main(args=None):
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, output_metadata=parsed.output_metadata,
             crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
             crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
-            verbose=parsed.verbose, progress=parsed.progress)
+            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original)
 
 
 def sys_main():
