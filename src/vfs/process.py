@@ -360,11 +360,14 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                     out.write(frame)
                 else:
                     # keep original filename when using image_dir
+                    tmp_file = None
                     if (files is not None) and keep_original:
-                        tmp_file = os.path.join(output_tmp, os.path.basename(files[frames_count - 1]))
+                        if output_tmp is not None:
+                            tmp_file = os.path.join(output_tmp, os.path.basename(files[frames_count - 1]))
                         out_file = os.path.join(output, os.path.basename(files[frames_count - 1]))
                     else:
-                        tmp_file = os.path.join(output_tmp, output_format % frames_count)
+                        if output_tmp is not None:
+                            tmp_file = os.path.join(output_tmp, output_format % frames_count)
                         out_file = os.path.join(output, output_format % frames_count)
                     if output_tmp is not None:
                         cv2.imwrite(tmp_file, frame)
