@@ -14,13 +14,13 @@ for the predictions to come through. This approach avoids wearing out disks.
 
 * create virtual environment
 
-  ```commandline
+  ```bash
   virtualenv -p /usr/bin/python3.7 venv
   ```
   
 * install library
 
-  ```commandline
+  ```bash
   ./venv/bin/pip install video-frame-selector
   ```
 
@@ -47,11 +47,11 @@ for the predictions to come through. This approach avoids wearing out disks.
 ### File-polling based
 
 ```
-usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
-                   [--nth_frame INT] [--max_frames INT] [--from_frame INT]
-                   [--to_frame INT] [--analysis_input DIR]
-                   [--analysis_tmp DIR] [--analysis_output DIR]
-                   [--analysis_timeout SECONDS]
+usage: vfs-process [-h] --input DIR_OR_FILE_OR_ID --input_type
+                   {image_dir,video,webcam} [--nth_frame INT]
+                   [--max_frames INT] [--from_frame INT] [--to_frame INT]
+                   [--analysis_input DIR] [--analysis_tmp DIR]
+                   [--analysis_output DIR] [--analysis_timeout SECONDS]
                    [--analysis_type {rois_csv,opex_json}]
                    [--analysis_keep_files] [--min_score FLOAT]
                    [--required_labels LIST] [--excluded_labels LIST]
@@ -60,7 +60,8 @@ usage: vfs-process [-h] --input FILE_OR_ID --input_type {video,webcam}
                    [--output_tmp DIR] [--output_fps FORMAT]
                    [--crop_to_content] [--crop_margin INT]
                    [--crop_min_width INT] [--crop_min_height INT]
-                   [--output_metadata] [--progress INT] [--verbose]
+                   [--output_metadata] [--progress INT] [--keep_original]
+                   [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -68,9 +69,10 @@ output.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --input FILE_OR_ID    the video file to read or the webcam ID (default:
-                        None)
-  --input_type {video,webcam}
+  --input DIR_OR_FILE_OR_ID
+                        the dir with images, video file to read or the webcam
+                        ID (default: None)
+  --input_type {image_dir,video,webcam}
                         the input type (default: None)
   --nth_frame INT       every nth frame gets presented to the analysis process
                         (default: 10)
@@ -138,6 +140,8 @@ optional arguments:
                         False)
   --progress INT        every nth frame a progress message is output on stdout
                         (default: 100)
+  --keep_original       keeps the original file name when processing an image
+                        dir (default: False)
   --verbose             for more verbose output (default: False)
 ```
 
@@ -145,12 +149,12 @@ optional arguments:
 ### Redis-based
 
 ```
-usage: vfs-process-redis [-h] --input FILE_OR_ID --input_type {video,webcam}
-                         [--nth_frame INT] [--max_frames INT]
-                         [--from_frame INT] [--to_frame INT]
-                         [--redis_host HOST] [--redis_port PORT]
-                         [--redis_db DB] --redis_out CHANNEL --redis_in
-                         CHANNEL [--redis_timeout SECONDS]
+usage: vfs-process-redis [-h] --input DIR_OR_FILE_OR_ID --input_type
+                         {image_dir,video,webcam} [--nth_frame INT]
+                         [--max_frames INT] [--from_frame INT]
+                         [--to_frame INT] [--redis_host HOST]
+                         [--redis_port PORT] [--redis_db DB] --redis_out
+                         CHANNEL --redis_in CHANNEL [--redis_timeout SECONDS]
                          [--analysis_type {rois_csv,opex_json}]
                          [--min_score FLOAT] [--required_labels LIST]
                          [--excluded_labels LIST] --output DIR_OR_FILE
@@ -158,7 +162,8 @@ usage: vfs-process-redis [-h] --input FILE_OR_ID --input_type {video,webcam}
                          [--output_tmp DIR] [--output_fps FORMAT]
                          [--crop_to_content] [--crop_margin INT]
                          [--crop_min_width INT] [--crop_min_height INT]
-                         [--output_metadata] [--progress INT] [--verbose]
+                         [--output_metadata] [--progress INT]
+                         [--keep_original] [--verbose]
 
 Tool for replaying videos or grabbing frames from webcam, presenting it to an
 image analysis framework to determine whether to include the frame in the
@@ -166,9 +171,10 @@ output. Uses Redis to exchange data.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --input FILE_OR_ID    the video file to read or the webcam ID (default:
-                        None)
-  --input_type {video,webcam}
+  --input DIR_OR_FILE_OR_ID
+                        the dir with images, video file to read or the webcam
+                        ID (default: None)
+  --input_type {image_dir,video,webcam}
                         the input type (default: None)
   --nth_frame INT       every nth frame gets presented to the analysis process
                         (default: 10)
@@ -229,6 +235,8 @@ optional arguments:
                         False)
   --progress INT        every nth frame a progress message is output on stdout
                         (default: 100)
+  --keep_original       keeps the original file name when processing an image
+                        dir (default: False)
   --verbose             for more verbose output (default: False)
 ```
 
@@ -271,7 +279,7 @@ Directory structure:
 Running [detectron2](https://github.com/waikato-datamining/pytorch/tree/master/detectron2) 
 to detect farm animals (Goat, Cow, Chicken): 
 
-```commandline
+```bash
 docker run --gpus=all --shm-size 8G -u $(id -u):$(id -g) -e USER=$USER \
     -v /some/where:/opt/projects \
     -v /some/where/cache:/.torch \
@@ -296,7 +304,7 @@ d2_predict \
 
 Feeding in images from a video, but only keeping frames with *Goat* detections with a score of at least 0.8:
 
-```commandline
+```bash
 vfs-process \ 
   --input "/some/where/data/my_farm.avi" \
   --input_type video \
@@ -342,7 +350,7 @@ Directory structure:
 Running [detectron2](https://github.com/waikato-datamining/pytorch/tree/master/detectron2) 
 to detect farm animals (Goat, Cow, Chicken): 
 
-```commandline
+```bash
 docker run --gpus=all --shm-size 8G -u $(id -u):$(id -g) -e USER=$USER \
     -v /some/where:/opt/projects \
     -v /some/where/cache:/.torch \
@@ -362,7 +370,7 @@ d2_predict_redis \
 
 Feeding in images from a video, but only keeping frames with *Goat* detections with a score of at least 0.8:
 
-```commandline
+```bash
 vfs-process-redis \ 
   --input "/some/where/data/my_farm.avi" \
   --input_type video \

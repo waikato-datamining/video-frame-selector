@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.0.8 (2021-11-02)
+------------------
+
+- `process.py` and `process_redis.py` now allow iterating through images (.jpg, .png) in a directory
+- `process_redis.py` now handles predictions in bytes or str
+
+
 0.0.7 (2021-09-27)
 ------------------
 
