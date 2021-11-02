@@ -318,7 +318,8 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
 
     log("Frames processed: %d" % frames_count)
 
-    cap.release()
+    if cap is not None:
+        cap.release()
     if out is not None:
         out.release()
 
