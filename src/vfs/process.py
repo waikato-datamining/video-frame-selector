@@ -86,16 +86,14 @@ def load_output(analysis_file, analysis_type, metadata):
     return result
 
 
-def cleanup_file(path, analysis_keep_files):
+def cleanup_file(path):
     """
-    Removes the file if necessary.
+    Removes the file if present.
 
     :param path: the file to remove
     :type path: str
-    :param analysis_keep_files: whether to keep the file or not
-    :type analysis_keep_files: bool
     """
-    if not analysis_keep_files and os.path.exists(path):
+    if os.path.exists(path):
         os.remove(path)
 
 
@@ -190,14 +188,14 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                         frame = crop_frame(frame, predictions, metadata,
                                            margin=crop_margin, min_width=crop_min_width, min_height=crop_min_height,
                                            verbose=verbose)
-                    cleanup_file(img_in_file, analysis_keep_files)
-                    cleanup_file(img_out_file, analysis_keep_files)
+                    cleanup_file(img_in_file)
+                    cleanup_file(img_out_file)
                 return result, frame, metadata
         sleep(poll_interval)
 
     # clean up if necessary
-    cleanup_file(img_in_file, analysis_keep_files)
-    cleanup_file(img_out_file, analysis_keep_files)
+    cleanup_file(img_in_file)
+    cleanup_file(img_out_file)
 
     return False, frame, metadata
 
