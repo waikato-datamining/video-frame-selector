@@ -28,6 +28,7 @@ for the predictions to come through. This approach avoids wearing out disks.
 
 * Input
 
+  * directory with images (.jpg, .png)
   * webcam
   * videos
   
