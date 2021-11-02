@@ -188,8 +188,8 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                         frame = crop_frame(frame, predictions, metadata,
                                            margin=crop_margin, min_width=crop_min_width, min_height=crop_min_height,
                                            verbose=verbose)
-                    cleanup_file(img_in_file)
-                    cleanup_file(img_out_file)
+                cleanup_file(img_in_file)
+                cleanup_file(img_out_file)
                 return result, frame, metadata
         sleep(poll_interval)
 
