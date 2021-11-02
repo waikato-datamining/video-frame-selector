@@ -86,6 +86,19 @@ def load_output(analysis_file, analysis_type, metadata):
     return result
 
 
+def cleanup_file(path, analysis_keep_files):
+    """
+    Removes the file if necessary.
+
+    :param path: the file to remove
+    :type path: str
+    :param analysis_keep_files: whether to keep the file or not
+    :type analysis_keep_files: bool
+    """
+    if not analysis_keep_files and os.path.exists(path):
+        os.remove(path)
+
+
 def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                   analysis_timeout, analysis_type, analysis_keep_files,
                   min_score, required_labels, excluded_labels, poll_interval,
@@ -177,16 +190,14 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
                         frame = crop_frame(frame, predictions, metadata,
                                            margin=crop_margin, min_width=crop_min_width, min_height=crop_min_height,
                                            verbose=verbose)
-                    if not analysis_keep_files and os.path.exists(img_out_file):
-                        os.remove(img_out_file)
+                    cleanup_file(img_in_file, analysis_keep_files)
+                    cleanup_file(img_out_file, analysis_keep_files)
                 return result, frame, metadata
         sleep(poll_interval)
 
     # clean up if necessary
-    if not analysis_keep_files and os.path.exists(img_in_file):
-        os.remove(img_in_file)
-    if not analysis_keep_files and os.path.exists(img_out_file):
-        os.remove(img_out_file)
+    cleanup_file(img_in_file, analysis_keep_files)
+    cleanup_file(img_out_file, analysis_keep_files)
 
     return False, frame, metadata
 
