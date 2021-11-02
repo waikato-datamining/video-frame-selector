@@ -96,10 +96,12 @@ def load_roiscsv_from_str(analysis_str):
     Loads data from the specified ROIs CSV string.
 
     :param analysis_str: the ROIs CSV string to parse
-    :type analysis_str: str
+    :type analysis_str: str or bytes
     :return: the list of predictions
     :rtype: list
     """
+    if isinstance(analysis_str, bytes):
+        analysis_str = analysis_str.decode()
     return _load_roiscsv(io.StringIO(analysis_str))
 
 
@@ -139,10 +141,12 @@ def load_opexjson_from_str(analysis_str):
     Loads the specified OPEX JSON string.
 
     :param analysis_str: the OPEX JSON string to load
-    :type analysis_str: str
+    :type analysis_str: str or bytes
     :return: the list of predictions
     :rtype: list
     """
+    if isinstance(analysis_str, bytes):
+        analysis_str = analysis_str.decode()
     return _opex_to_predictions(ObjectPredictions.from_json_string(analysis_str))
 
 
