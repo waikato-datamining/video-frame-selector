@@ -276,7 +276,6 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
         if retval:
             if count >= nth_frame:
                 count = 0
-                metadata = None
 
                 # prune?
                 if prune:
