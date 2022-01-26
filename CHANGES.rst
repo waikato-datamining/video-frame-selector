@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.0.9 (????-??-??)
+0.0.9 (2022-01-27)
 ------------------
 
 - added support for pruning frames that do not exhibit enough change over the previous one
