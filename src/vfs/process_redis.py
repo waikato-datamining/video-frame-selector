@@ -296,8 +296,7 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                         continue
                     if not above:
                         if verbose:
-                            log("Frame #%d not above threshold, skipping: %f < %f" % (
-                            frames_count, change, change_threshold))
+                            log("Frame #%d not above threshold, skipping: %f < %f" % (frames_count, change, change_threshold))
                         continue
 
                 # do we want to keep frame?
