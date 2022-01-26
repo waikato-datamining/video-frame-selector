@@ -9,6 +9,9 @@ Alternatively, a [Redis](https://redis.io/) backend can be used (*redis-based*),
 to broadcast the images as JPG bytes and then listening on another channel
 for the predictions to come through. This approach avoids wearing out disks. 
 
+Rather than just processing every n-th frame, a simple pruning mechanism can
+be employed which discards frames that are too similar.
+
 
 ## Installation
 
@@ -51,6 +54,7 @@ for the predictions to come through. This approach avoids wearing out disks.
 usage: vfs-process [-h] --input DIR_OR_FILE_OR_ID --input_type
                    {image_dir,video,webcam} [--nth_frame INT]
                    [--max_frames INT] [--from_frame INT] [--to_frame INT]
+                   [--prune] [--bw_threshold INT] [--change_threshold FLOAT]
                    [--analysis_input DIR] [--analysis_tmp DIR]
                    [--analysis_output DIR] [--analysis_timeout SECONDS]
                    [--analysis_type {rois_csv,opex_json}]
@@ -83,6 +87,13 @@ optional arguments:
                         -1)
   --to_frame INT        the last frame to process (incl.); ignored if <= 0
                         (default: -1)
+  --prune               whether to prune the images if not enough change
+                        (default: False)
+  --bw_threshold INT    The threshold (0-255) for the black/white conversion
+                        (requires --prune) (default: 128)
+  --change_threshold FLOAT
+                        The threshold (0.0-1.0) for the change detection
+                        (requires --prune) (default: 0.0)
   --analysis_input DIR  the input directory used by the image analysis
                         process; if not provided, all frames get accepted
                         (default: None)
@@ -153,7 +164,8 @@ optional arguments:
 usage: vfs-process-redis [-h] --input DIR_OR_FILE_OR_ID --input_type
                          {image_dir,video,webcam} [--nth_frame INT]
                          [--max_frames INT] [--from_frame INT]
-                         [--to_frame INT] [--redis_host HOST]
+                         [--to_frame INT] [--prune] [--bw_threshold INT]
+                         [--change_threshold FLOAT] [--redis_host HOST]
                          [--redis_port PORT] [--redis_db DB] --redis_out
                          CHANNEL --redis_in CHANNEL [--redis_timeout SECONDS]
                          [--analysis_type {rois_csv,opex_json}]
@@ -185,6 +197,13 @@ optional arguments:
                         -1)
   --to_frame INT        the last frame to process (incl.); ignored if <= 0
                         (default: -1)
+  --prune               whether to prune the images if not enough change
+                        (default: False)
+  --bw_threshold INT    The threshold (0-255) for the black/white conversion
+                        (requires --prune) (default: 128)
+  --change_threshold FLOAT
+                        The threshold (0.0-1.0) for the change detection
+                        (requires --prune) (default: 0.0)
   --redis_host HOST     The redis server to connect to (default: localhost)
   --redis_port PORT     The port the redis server is listening on (default:
                         6379)

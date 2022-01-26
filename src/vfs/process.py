@@ -10,6 +10,7 @@ from vfs.common import INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM, INPUT_TYPES, 
     ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, ANALYSIS_FORMAT, list_images
 from vfs.predictions import crop_frame, check_predictions, load_roiscsv, load_opexjson
 from vfs.logging import log
+from vfs.prune import detect_change
 
 
 def cleanup_file(path):
@@ -151,12 +152,13 @@ def process_image(frame, frameno, analysis_input, analysis_output, analysis_tmp,
     return False, frame, metadata
 
 
-def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_output, analysis_tmp,
+def process(input, input_type, nth_frame, max_frames,
+            analysis_input, analysis_output, analysis_tmp,
             analysis_timeout, analysis_type, analysis_keep_files, from_frame, to_frame,
             min_score, required_labels, excluded_labels, poll_interval,
             output, output_type, output_format, output_tmp, output_fps, output_metadata,
             crop_to_content, crop_margin, crop_min_width, crop_min_height,
-            verbose, progress, keep_original):
+            verbose, progress, keep_original, prune, bw_threshold, change_threshold):
     """
     Processes the input video or webcam feed.
     
@@ -218,6 +220,12 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     :type progress: int
     :param keep_original: whether to keep the original filename when processing an image dir
     :type keep_original: bool
+    :param prune: whether to discard images if they isn't enough change between them
+    :type prune: bool
+    :param bw_threshold: the threshold (0-255) for the black/white conversion (requires prune)
+    :type bw_threshold: int
+    :param change_threshold: the threshold (0.0-1.0) for the change detection (requires prune)
+    :type change_threshold: float
     """
 
     # open input
@@ -272,14 +280,16 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
     count = 0
     frames_count = 0
     frames_processed = 0
+    frame_curr = None
+    frame_prev = None
     while ((cap is not None) and cap.isOpened()) or (files is not None):
         # next frame
         if cap is not None:
-            retval, frame = cap.read()
+            retval, frame_curr = cap.read()
         else:
             retval = frames_count < len(files)
             if retval:
-                frame = cv2.imread(files[frames_count])
+                frame_curr = cv2.imread(files[frames_count])
         count += 1
         frames_count += 1
 
@@ -304,20 +314,41 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                 count = 0
                 metadata = None
 
+                # prune?
+                if prune:
+                    # nothing to compare?
+                    if frame_prev is None:
+                        frame_prev = frame_curr
+                        frame_curr = None
+                        continue
+                    try:
+                        change, above = detect_change(frame_prev, frame_curr, bw_threshold=bw_threshold,
+                                                      change_threshold=change_threshold)
+                    except Exception:
+                        frame_prev = None
+                        frame_curr = None
+                        log("Failed to compare frames (current frame: %d), skipping!" % frames_count)
+                        traceback.print_exc()
+                        continue
+                    if not above:
+                        if verbose:
+                            log("Frame #%d not above threshold, skipping: %f < %f" % (frames_count, change, change_threshold))
+                        continue
+
                 # do we want to keep frame?
                 if analysis_input is not None:
-                    keep, frame, metadata = process_image(frame, frames_count, analysis_input, analysis_output, analysis_tmp,
-                                                          analysis_timeout, analysis_type, analysis_keep_files, min_score,
-                                                          required_labels, excluded_labels, poll_interval,
-                                                          crop_to_content, crop_margin, crop_min_width, crop_min_height,
-                                                          verbose)
+                    keep, frame_curr, metadata = process_image(frame_curr, frames_count, analysis_input, analysis_output, analysis_tmp,
+                                                               analysis_timeout, analysis_type, analysis_keep_files, min_score,
+                                                               required_labels, excluded_labels, poll_interval,
+                                                               crop_to_content, crop_margin, crop_min_width, crop_min_height,
+                                                               verbose)
                     if not keep:
                         continue
 
                 frames_processed += 1
 
                 if out is not None:
-                    out.write(frame)
+                    out.write(frame_curr)
                 else:
                     # keep original filename when using image_dir
                     tmp_file = None
@@ -330,7 +361,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                             tmp_file = os.path.join(output_tmp, output_format % frames_count)
                         out_file = os.path.join(output, output_format % frames_count)
                     if output_tmp is not None:
-                        cv2.imwrite(tmp_file, frame)
+                        cv2.imwrite(tmp_file, frame_curr)
                         os.rename(tmp_file, out_file)
                         if verbose:
                             log("Frame written to: %s" % out_file)
@@ -343,7 +374,7 @@ def process(input, input_type, nth_frame, max_frames, analysis_input, analysis_o
                             if verbose:
                                 log("Meta-data written to: %s" % out_file)
                     else:
-                        cv2.imwrite(out_file, frame)
+                        cv2.imwrite(out_file, frame_curr)
                         if verbose:
                             log("Frame written to: %s" % out_file)
                         if output_metadata and (metadata is not None):
@@ -381,6 +412,9 @@ def main(args=None):
     parser.add_argument("--max_frames", metavar="INT", help="the maximum number of processed frames before exiting (<=0 for unlimited)", required=False, type=int, default=0)
     parser.add_argument("--from_frame", metavar="INT", help="the starting frame (incl.); ignored if <= 0", required=False, type=int, default=-1)
     parser.add_argument("--to_frame", metavar="INT", help="the last frame to process (incl.); ignored if <= 0", required=False, type=int, default=-1)
+    parser.add_argument("--prune", help="whether to prune the images if not enough change", action="store_true", required=False)
+    parser.add_argument("--bw_threshold", metavar="INT", default=128, type=int, help="The threshold (0-255) for the black/white conversion (requires --prune)")
+    parser.add_argument("--change_threshold", metavar="FLOAT", default=0.0, type=float, help="The threshold (0.0-1.0) for the change detection (requires --prune)")
     parser.add_argument("--analysis_input", metavar="DIR", help="the input directory used by the image analysis process; if not provided, all frames get accepted", required=False)
     parser.add_argument("--analysis_tmp", metavar="DIR", help="the temporary directory to place the images in before moving them into the actual input directory (to avoid race conditions)", required=False)
     parser.add_argument("--analysis_output", metavar="DIR", help="the output directory used by the image analysis process", required=False)
@@ -425,7 +459,8 @@ def main(args=None):
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, output_metadata=parsed.output_metadata,
             crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
             crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
-            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original)
+            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original,
+            prune=parsed.prune, bw_threshold=parsed.bw_threshold, change_threshold=parsed.change_threshold)
 
 
 def sys_main():

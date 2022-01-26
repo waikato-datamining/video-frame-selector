@@ -8,6 +8,9 @@ Alternatively, a Redis (https://redis.io/) backend can be used (*redis-based*),
 to broadcast the images as JPG bytes and then listening on another channel
 for the predictions to come through. This approach avoids wearing out disks.
 
+Rather than just processing every n-th frame, a simple pruning mechanism can
+be employed which discards frames that are too similar.
+
 Project page:
 
 https://github.com/waikato-datamining/video-frame-selector

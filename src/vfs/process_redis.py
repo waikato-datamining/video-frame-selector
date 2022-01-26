@@ -11,6 +11,7 @@ from vfs.common import INPUT_IMAGE_DIR, INPUT_VIDEO, INPUT_WEBCAM, INPUT_TYPES, 
     ANALYSIS_TYPES, OUTPUT_JPG, OUTPUT_MJPG, OUTPUT_TYPES, list_images
 from vfs.predictions import load_roiscsv_from_str, load_opexjson_from_str, crop_frame, check_predictions
 from vfs.logging import log
+from vfs.prune import detect_change
 
 
 def load_output(analysis_str, analysis_type, metadata):
@@ -135,7 +136,7 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
             min_score, required_labels, excluded_labels,
             output, output_type, output_format, output_tmp, output_fps, output_metadata,
             crop_to_content, crop_margin, crop_min_width, crop_min_height,
-            verbose, progress, keep_original):
+            verbose, progress, keep_original, prune, bw_threshold, change_threshold):
     """
     Processes the input video or webcam feed.
     
@@ -187,6 +188,12 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
     :type progress: int
     :param keep_original: whether to keep the original filename when processing an image dir
     :type keep_original: bool
+    :param prune: whether to discard images if they isn't enough change between them
+    :type prune: bool
+    :param bw_threshold: the threshold (0-255) for the black/white conversion (requires prune)
+    :type bw_threshold: int
+    :param change_threshold: the threshold (0.0-1.0) for the change detection (requires prune)
+    :type change_threshold: float
     """
 
     # open input
@@ -237,14 +244,16 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
     count = 0
     frames_count = 0
     frames_processed = 0
+    frame_curr = None
+    frame_prev = None
     while ((cap is not None) and cap.isOpened()) or (files is not None):
         # next frame
         if cap is not None:
-            retval, frame = cap.read()
+            retval, frame_curr = cap.read()
         else:
             retval = frames_count < len(files)
             if retval:
-                frame = cv2.imread(files[frames_count])
+                frame_curr = cv2.imread(files[frames_count])
         count += 1
         frames_count += 1
 
@@ -267,6 +276,29 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
         if retval:
             if count >= nth_frame:
                 count = 0
+                metadata = None
+
+                # prune?
+                if prune:
+                    # nothing to compare?
+                    if frame_prev is None:
+                        frame_prev = frame_curr
+                        frame_curr = None
+                        continue
+                    try:
+                        change, above = detect_change(frame_prev, frame_curr, bw_threshold=bw_threshold,
+                                                      change_threshold=change_threshold)
+                    except Exception:
+                        frame_prev = None
+                        frame_curr = None
+                        log("Failed to compare frames (current frame: %d), skipping!" % frames_count)
+                        traceback.print_exc()
+                        continue
+                    if not above:
+                        if verbose:
+                            log("Frame #%d not above threshold, skipping: %f < %f" % (
+                            frames_count, change, change_threshold))
+                        continue
 
                 # do we want to keep frame?
                 keep, frame, metadata = process_image(frame, frames_count, redis_conn, analysis_type, min_score,
@@ -278,7 +310,7 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                 frames_processed += 1
 
                 if out is not None:
-                    out.write(frame)
+                    out.write(frame_curr)
                 else:
                     # keep original filename when using image_dir
                     tmp_file = None
@@ -291,7 +323,7 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                             tmp_file = os.path.join(output_tmp, output_format % frames_count)
                         out_file = os.path.join(output, output_format % frames_count)
                     if output_tmp is not None:
-                        cv2.imwrite(tmp_file, frame)
+                        cv2.imwrite(tmp_file, frame_curr)
                         os.rename(tmp_file, out_file)
                         if verbose:
                             log("Frame written to: %s" % out_file)
@@ -304,7 +336,7 @@ def process(input, input_type, nth_frame, max_frames, redis_conn,
                             if verbose:
                                 log("Meta-data written to: %s" % out_file)
                     else:
-                        cv2.imwrite(out_file, frame)
+                        cv2.imwrite(out_file, frame_curr)
                         if verbose:
                             log("Frame written to: %s" % out_file)
                         if output_metadata and (metadata is not None):
@@ -342,6 +374,9 @@ def main(args=None):
     parser.add_argument("--max_frames", metavar="INT", help="the maximum number of processed frames before exiting (<=0 for unlimited)", required=False, type=int, default=0)
     parser.add_argument("--from_frame", metavar="INT", help="the starting frame (incl.); ignored if <= 0", required=False, type=int, default=-1)
     parser.add_argument("--to_frame", metavar="INT", help="the last frame to process (incl.); ignored if <= 0", required=False, type=int, default=-1)
+    parser.add_argument("--prune", help="whether to prune the images if not enough change", action="store_true", required=False)
+    parser.add_argument("--bw_threshold", metavar="INT", default=128, type=int, help="The threshold (0-255) for the black/white conversion (requires --prune)")
+    parser.add_argument("--change_threshold", metavar="FLOAT", default=0.0, type=float, help="The threshold (0.0-1.0) for the change detection (requires --prune)")
     parser.add_argument('--redis_host', metavar='HOST', required=False, default="localhost", help='The redis server to connect to')
     parser.add_argument('--redis_port', metavar='PORT', required=False, default=6379, type=int, help='The port the redis server is listening on')
     parser.add_argument('--redis_db', metavar='DB', required=False, default=0, type=int, help='The redis database to use')
@@ -390,7 +425,8 @@ def main(args=None):
             output_tmp=parsed.output_tmp, output_fps=parsed.output_fps, output_metadata=parsed.output_metadata,
             crop_to_content=parsed.crop_to_content, crop_margin=parsed.crop_margin,
             crop_min_width=parsed.crop_min_width, crop_min_height=parsed.crop_min_height,
-            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original)
+            verbose=parsed.verbose, progress=parsed.progress, keep_original=parsed.keep_original,
+            prune=parsed.prune, bw_threshold=parsed.bw_threshold, change_threshold=parsed.change_threshold)
 
 
 def sys_main():

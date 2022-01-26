@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.0.9 (????-??-??)
+------------------
+
+- added support for pruning frames that do not exhibit enough change over the previous one
+  (`--prune`, `--bw_threshold`, `--change_threshold`)
+
+
 0.0.8 (2021-11-02)
 ------------------
 
