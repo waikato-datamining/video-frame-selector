@@ -24,7 +24,7 @@ be employed which discards frames that are too similar.
 * install library
 
   ```bash
-  ./venv/bin/pip install video-frame-selector
+  ./venv/bin/pip install video_frame_selector
   ```
 
 ## Supported formats
